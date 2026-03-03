@@ -1,0 +1,601 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&family=Playfair+Display:wght@600;700&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* ── COLOR PALETTE & SHADOWS ── */
+:root {
+  --sky-50:  #f0f9ff;
+  --sky-100: #e0f2fe;
+  --sky-200: #bae6fd;
+  --sky-300: #7dd3fc;
+  --sky-400: #38bdf8;
+  --sky-500: #0ea5e9;
+  --sky-600: #0284c7;
+  --sky-700: #0369a1;
+  --sky-800: #075985;
+  --white:   #ffffff;
+  --gray-50: #f8fafc;
+  --gray-100:#f1f5f9;
+  --gray-200:#e2e8f0;
+  --gray-400:#94a3b8;
+  --gray-500:#64748b;
+  --gray-600:#475569;
+  --gray-700:#334155;
+  --gray-800:#1e293b;
+  --gray-900:#0f172a;
+  --red:     #ef4444;
+  --orange:  #f97316;
+  --green:   #22c55e;
+  --amber:   #f59e0b;
+  --purple:  #8b5cf6;
+  --radius:  12px;
+  --shadow-sm: 0 1px 3px rgba(14,165,233,.08), 0 1px 2px rgba(14,165,233,.06);
+  --shadow-md: 0 4px 16px rgba(14,165,233,.12), 0 2px 6px rgba(14,165,233,.08);
+  --shadow-lg: 0 10px 40px rgba(14,165,233,.16), 0 4px 12px rgba(14,165,233,.10);
+}
+
+/* ── BASE STYLES ── */
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--sky-50);
+  color: var(--gray-900);
+  min-height: 100vh;
+  line-height: 1.6;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--sky-100); }
+::-webkit-scrollbar-thumb { background: var(--sky-300); border-radius: 3px; }
+
+/* ── Animations ── */
+@keyframes fadeIn  { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+@keyframes slideIn { from { opacity:0; transform:translateX(-16px);} to { opacity:1; transform:translateX(0); } }
+@keyframes pulse   { 0%,100% { opacity:1; } 50% { opacity:.5; } }
+@keyframes spin    { to { transform:rotate(360deg); } }
+@keyframes shimmer { from { background-position: -400px 0; } to { background-position: 400px 0; } }
+@keyframes glow    { 0%,100% { box-shadow: 0 0 20px rgba(14,165,233,.3); } 50% { box-shadow: 0 0 40px rgba(14,165,233,.6); } }
+
+.fade-in   { animation: fadeIn  .4s ease both; }
+.slide-in  { animation: slideIn .3s ease both; }
+
+/* ── LOGIN PAGE ── */
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--sky-600) 0%, var(--sky-400) 50%, var(--sky-200) 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Subtle background pattern using SVG */
+.login-page::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+}
+
+/* Centered login card */
+.login-card {
+  background: var(--white);
+  border-radius: 24px;
+  padding: 48px 40px;
+  width: 440px;
+  box-shadow: var(--shadow-lg), 0 0 0 1px rgba(255,255,255,.5);
+  animation: fadeIn .5s ease both;
+  position: relative;
+  z-index: 1;
+}
+
+/* Logo with gradient icon and elegant font */
+.login-logo { display: flex; align-items: center; gap: 10px; margin-bottom: 32px; }
+.login-logo-icon {
+  width: 44px; height: 44px;
+  background: linear-gradient(135deg, var(--sky-500), var(--sky-700));
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  color: white; font-size: 20px; font-weight: 700;
+  animation: glow 3s ease infinite;
+}
+
+/* Using 'Playfair Display' for a more sophisticated look */
+.login-logo-text { font-family: 'Playfair Display', serif; font-size: 24px; color: var(--sky-700); font-weight: 700; }
+.login-logo-text span { color: var(--sky-400); }
+.login-subtitle { font-size: 14px; color: var(--gray-500); margin-bottom: 28px; }
+.login-h { font-size: 26px; font-weight: 700; color: var(--gray-900); margin-bottom: 4px; }
+
+/* Styled form elements with focus states and error messages */
+.form-group { margin-bottom: 18px; }
+.form-label { display: block; font-size: 13px; font-weight: 600; color: var(--gray-700); margin-bottom: 6px; }
+.form-input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1.5px solid var(--sky-200);
+  border-radius: var(--radius);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  color: var(--gray-900);
+  background: var(--sky-50);
+  outline: none;
+  transition: border-color .2s, box-shadow .2s;
+}
+
+/* Focus state with a subtle glow effect */
+.form-input:focus { border-color: var(--sky-500); box-shadow: 0 0 0 3px rgba(14,165,233,.15); background: white; }
+.form-input::placeholder { color: var(--gray-400); }
+
+/* Primary button with gradient background and hover effects */
+.btn-primary {
+  width: 100%;
+  padding: 13px;
+  background: linear-gradient(135deg, var(--sky-500), var(--sky-600));
+  color: white;
+  border: none;
+  border-radius: var(--radius);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform .15s, box-shadow .15s;
+  margin-top: 8px;
+}
+
+/* Hover state with a slight lift and stronger shadow */
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(14,165,233,.4); }
+.btn-primary:active { transform: translateY(0); }
+.btn-primary:disabled { opacity: .6; cursor: not-allowed; transform: none; }
+
+/* Divider with "or" text */
+.login-divider { display: flex; align-items: center; gap: 12px; margin: 20px 0; }
+.login-divider::before, .login-divider::after { content:''; flex:1; height:1px; background: var(--sky-200); }
+.login-divider span { font-size: 12px; color: var(--gray-400); }
+
+/* Demo accounts section with styled cards */
+.demo-accounts { background: var(--sky-50); border: 1px solid var(--sky-200); border-radius: var(--radius); padding: 14px; }
+.demo-accounts h4 { font-size: 12px; font-weight: 600; color: var(--sky-600); margin-bottom: 8px; text-transform: uppercase; letter-spacing: .5px; }
+.demo-account {
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 8px; border-radius: 8px; cursor: pointer;
+  transition: background .15s;
+}
+
+/* Hover state for demo accounts */
+.demo-account:hover { background: var(--sky-100); }
+.demo-avatar {
+  width: 28px; height: 28px;
+  background: linear-gradient(135deg, var(--sky-400), var(--sky-600));
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; color: white;
+}
+
+/* Demo user info with name, role, and fill credentials */
+.demo-info { flex: 1; }
+.demo-name { font-size: 13px; font-weight: 600; color: var(--gray-700); }
+.demo-role { font-size: 11px; color: var(--gray-400); }
+.demo-fill { font-size: 10px; color: var(--sky-500); }
+.error-msg { background: #fef2f2; color: var(--red); border: 1px solid #fecaca; border-radius: 8px; padding: 10px 12px; font-size: 13px; margin-bottom: 14px; }
+
+/* ── DASHBOARD LAYOUT ── */
+.app { display: flex; min-height: 100vh; }
+
+/* Sidebar with sticky positioning, custom scrollbar, and elegant styling */
+.sidebar {
+  width: 240px; min-width: 240px;
+  background: var(--white);
+  border-right: 1.5px solid var(--sky-100);
+  display: flex; flex-direction: column;
+  box-shadow: 2px 0 12px rgba(14,165,233,.06);
+  position: sticky; top: 0; height: 100vh; overflow-y: auto;
+}
+
+/* Custom scrollbar for sidebar */
+.sidebar-header { padding: 22px 20px 18px; border-bottom: 1px solid var(--sky-100); }
+.sidebar-logo { display: flex; align-items: center; gap: 10px; }
+.sidebar-logo-icon {
+  width: 36px; height: 36px;
+  border-radius: 10px;
+  object-fit: contain;
+}
+
+/* Using 'Playfair Display' for a more sophisticated look */
+.sidebar-logo-text { font-family: 'Playfair Display', serif; font-size: 18px; color: var(--sky-700); font-weight: 700; }
+.sidebar-logo-text span { color: var(--sky-400); }
+
+/* Navigation with sections, active states, and badges */
+.sidebar-nav { flex: 1; padding: 16px 12px; display: flex; flex-direction: column; gap: 2px; }
+.sidebar-section { font-size: 10px; font-weight: 700; color: var(--gray-400); text-transform: uppercase; letter-spacing: 1px; padding: 12px 8px 6px; }
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background .15s, color .15s;
+  font-size: 14px; font-weight: 500; color: var(--gray-500);
+}
+
+/* Hover and active states for navigation items */
+.nav-item:hover { background: var(--sky-50); color: var(--sky-600); }
+.nav-item.active { background: var(--sky-100); color: var(--sky-700); font-weight: 600; }
+.nav-icon { font-size: 16px; width: 20px; text-align: center; }
+.nav-badge {
+  margin-left: auto;
+  background: var(--sky-500);
+  color: white;
+  font-size: 10px; font-weight: 700;
+  padding: 1px 6px; border-radius: 10px;
+}
+
+/* Different badge colors for different contexts */
+.nav-badge.red { background: var(--red); }
+
+/* User card in sidebar footer with avatar, name, role, and hover effect */
+.sidebar-footer { padding: 16px; border-top: 1px solid var(--sky-100); }
+.user-card {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px;
+  background: var(--sky-50);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background .15s;
+}
+
+/* Hover state for user card */
+.user-card:hover { background: var(--sky-100); }
+.user-avatar {
+  width: 34px; height: 34px;
+  background: linear-gradient(135deg, var(--sky-400), var(--sky-600));
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; color: white;
+}
+
+/* User info with name and role, using ellipsis for overflow */
+.user-info { flex: 1; min-width: 0; }
+.user-name { font-size: 13px; font-weight: 600; color: var(--gray-700); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.user-role { font-size: 11px; color: var(--gray-400); }
+
+/* ── MAIN CONTENT ── */
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+/* Topbar with sticky positioning, search bar, and action buttons */
+.topbar {
+  background: var(--white);
+  border-bottom: 1.5px solid var(--sky-100);
+  padding: 0 28px;
+  height: 64px;
+  display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 10;
+}
+
+/* Using 'Playfair Display' for a more sophisticated look */
+.topbar-title { font-size: 20px; font-weight: 700; color: var(--gray-900); }
+.topbar-sub { font-size: 13px; color: var(--gray-400); }
+.topbar-right { display: flex; align-items: center; gap: 10px; }
+
+/* Search bar with icon, placeholder, and focus state */
+.search-bar {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--sky-50);
+  border: 1.5px solid var(--sky-200);
+  border-radius: 10px;
+  padding: 8px 14px;
+  min-width: 220px;
+}
+
+/* Focus state for search bar with a subtle glow effect */
+.search-bar input {
+  border: none; background: transparent;
+  font-family: 'DM Sans', sans-serif; font-size: 13px; color: var(--gray-700);
+  outline: none; width: 100%;
+}
+.search-bar input::placeholder { color: var(--gray-400); }
+
+/* Icon buttons in the topbar with hover effects */
+.icon-btn {
+  width: 36px; height: 36px;
+  background: var(--sky-50);
+  border: 1.5px solid var(--sky-200);
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; font-size: 16px;
+  transition: background .15s, border-color .15s;
+}
+.icon-btn:hover { background: var(--sky-100); border-color: var(--sky-300); }
+
+.content { flex: 1; padding: 28px; overflow-y: auto; }
+
+/* ── STAT CARDS ── */
+.stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin-bottom: 28px; }
+.stat-card {
+  background: var(--white);
+  border-radius: 16px;
+  padding: 22px;
+  box-shadow: var(--shadow-sm);
+  border: 1.5px solid var(--sky-100);
+  position: relative; overflow: hidden;
+  transition: transform .2s, box-shadow .2s;
+  animation: fadeIn .4s ease both;
+}
+
+/* Hover state for stat cards with a slight lift and stronger shadow */
+.stat-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.stat-card::before {
+  content: ''; position: absolute; top: 0; right: 0;
+  width: 80px; height: 80px;
+  background: var(--sky-50);
+  border-radius: 0 16px 0 80px;
+}
+
+/* Stat card content with label, value, change indicator, and icon */
+.stat-label { font-size: 12px; font-weight: 600; color: var(--gray-400); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 8px; }
+.stat-value { font-size: 32px; font-weight: 700; color: var(--gray-900); margin-bottom: 4px; line-height: 1; }
+.stat-change { font-size: 12px; color: var(--gray-500); display: flex; align-items: center; gap: 4px; }
+.stat-change.up { color: var(--green); }
+.stat-change.down { color: var(--red); }
+.stat-icon { font-size: 24px; position: absolute; top: 18px; right: 18px; }
+
+/* ── GRID LAYOUT ── */
+.dashboard-grid { display: grid; grid-template-columns: 1fr 340px; gap: 22px; }
+.dashboard-col { display: flex; flex-direction: column; gap: 22px; }
+
+/* ── CARDS ── */
+.card {
+  background: var(--white);
+  border-radius: 16px;
+  box-shadow: var(--shadow-sm);
+  border: 1.5px solid var(--sky-100);
+  overflow: hidden;
+  animation: fadeIn .4s ease both;
+}
+
+/* Card header with title and optional action button */
+.card-header {
+  padding: 18px 22px 14px;
+  border-bottom: 1px solid var(--sky-100);
+  display: flex; align-items: center; justify-content: space-between;
+}
+
+/* Card title with icon and styled text */
+.card-title { font-size: 15px; font-weight: 700; color: var(--gray-900); display: flex; align-items: center; gap: 8px; }
+.card-title-icon { font-size: 16px; }
+.card-body { padding: 18px 22px; }
+
+/* ── CATEGORY TABS ── */
+.category-tabs { display: flex; gap: 6px; padding: 18px 22px 0; flex-wrap: wrap; }
+.cat-tab {
+  padding: 7px 16px;
+  border-radius: 20px;
+  font-size: 13px; font-weight: 600;
+  cursor: pointer;
+  border: 1.5px solid transparent;
+  transition: all .15s;
+}
+
+/* Different colors for different categories */
+.cat-tab.all       { color: var(--sky-600); background: var(--sky-50);  border-color: var(--sky-200); }
+.cat-tab.bug       { color: #dc2626;         background: #fef2f2;        border-color: #fecaca; }
+.cat-tab.story     { color: #7c3aed;         background: #f5f3ff;        border-color: #ddd6fe; }
+.cat-tab.task      { color: #059669;         background: #ecfdf5;        border-color: #a7f3d0; }
+.cat-tab.other     { color: #d97706;         background: #fffbeb;        border-color: #fde68a; }
+.cat-tab.active    { filter: saturate(1.2); box-shadow: 0 2px 8px rgba(0,0,0,.1); transform: translateY(-1px); }
+
+/* ── TICKET LIST ── */
+.ticket-list { padding: 12px 22px 18px; display: flex; flex-direction: column; gap: 8px; max-height: 480px; overflow-y: auto; }
+.ticket-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px;
+  border-radius: var(--radius);
+  border: 1.5px solid var(--sky-100);
+  background: var(--sky-50);
+  cursor: pointer;
+  transition: all .15s;
+  animation: fadeIn .3s ease both;
+}
+
+/* Hover state for ticket rows with background change, border color change, and slight shift */
+.ticket-row:hover { background: var(--sky-100); border-color: var(--sky-200); transform: translateX(2px); }
+.ticket-type-badge {
+  width: 26px; height: 26px; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; flex-shrink: 0;
+}
+
+/* Different colors for different ticket types */
+.type-bug   { background: #fef2f2; color: #dc2626; }
+.type-story { background: #f5f3ff; color: #7c3aed; }
+.type-task  { background: #ecfdf5; color: #059669; }
+.type-other { background: #fffbeb; color: #d97706; }
+
+/* Ticket info with ID, title, and meta information */
+.ticket-info { flex: 1; min-width: 0; }
+.ticket-id   { font-size: 11px; font-family: 'DM Mono', monospace; color: var(--sky-600); font-weight: 500; }
+.ticket-title { font-size: 13px; font-weight: 600; color: var(--gray-800); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ticket-meta  { display: flex; align-items: center; gap: 8px; margin-top: 3px; flex-wrap: wrap; }
+.ticket-meta-item { font-size: 11px; color: var(--gray-400); display: flex; align-items: center; gap: 3px; }
+
+/* Priority dots with different colors for different priority levels */
+.priority-dot { width: 6px; height: 6px; border-radius: 50%; }
+.p-critical { background: var(--red); }
+.p-high     { background: var(--orange); }
+.p-medium   { background: var(--amber); }
+.p-low      { background: var(--green); }
+
+/* Status pills with different colors for different statuses */
+.status-pill { padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+.s-open        { background: #dbeafe; color: #1d4ed8; }
+.s-in-progress { background: #fef3c7; color: #b45309; }
+.s-done        { background: #dcfce7; color: #15803d; }
+
+/* ── AI PANEL ── */
+.ai-summary-box {
+  background: linear-gradient(135deg, var(--sky-50) 0%, var(--white) 100%);
+  border: 1.5px solid var(--sky-200);
+  border-radius: var(--radius);
+  padding: 16px;
+  font-size: 13px; color: var(--gray-700); line-height: 1.6;
+  margin-bottom: 16px;
+  position: relative;
+}
+
+/* Subtle "AI Generated" badge in the corner of the summary box */
+.ai-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: linear-gradient(135deg, var(--sky-500), var(--sky-600));
+  color: white; font-size: 10px; font-weight: 700;
+  padding: 3px 8px; border-radius: 20px;
+  text-transform: uppercase; letter-spacing: .5px;
+  margin-bottom: 10px;
+}
+
+/* Different colors for different insight types */
+.insight-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+.insight-item {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 10px 12px;
+  border-radius: 10px; font-size: 12px;
+}
+
+/* Different background and text colors for different insight types */
+.insight-item.warning  { background: #fffbeb; color: #92400e; border-left: 3px solid var(--amber); }
+.insight-item.positive { background: #f0fdf4; color: #14532d; border-left: 3px solid var(--green); }
+.insight-item.info     { background: var(--sky-50); color: var(--sky-800); border-left: 3px solid var(--sky-400); }
+.insight-icon { font-size: 14px; margin-top: 1px; flex-shrink: 0; }
+
+/* Suggestions section with numbered badges and styled action/detail text */
+.suggestion-list { display: flex; flex-direction: column; gap: 8px; }
+.suggestion-item {
+  display: flex; gap: 12px; align-items: flex-start;
+  padding: 12px;
+  background: var(--sky-50);
+  border: 1px solid var(--sky-200);
+  border-radius: var(--radius);
+  font-size: 12px;
+}
+
+/* Numbered badge for suggestions */
+.suggestion-num {
+  width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0;
+  background: var(--sky-500); color: white;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700;
+}
+.suggestion-action { font-weight: 700; color: var(--gray-800); margin-bottom: 2px; }
+.suggestion-detail { color: var(--gray-500); }
+
+/* ── CHARTS ── */
+.charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.donut-wrap { display: flex; align-items: center; gap: 24px; }
+.donut-svg { flex-shrink: 0; }
+.donut-legend { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+.legend-item { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--gray-700); }
+.legend-dot  { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.legend-val  { margin-left: auto; font-weight: 700; color: var(--gray-900); font-family: 'DM Mono', monospace; }
+
+/* Bar chart with labels, tracks, and animated fills */
+.bar-chart { display: flex; flex-direction: column; gap: 12px; }
+.bar-row { display: flex; flex-direction: column; gap: 4px; }
+.bar-label { display: flex; justify-content: space-between; font-size: 12px; color: var(--gray-600); }
+.bar-track { height: 8px; background: var(--sky-100); border-radius: 4px; overflow: hidden; }
+.bar-fill  { height: 100%; border-radius: 4px; transition: width .6s ease; }
+
+/* ── TICKET MODAL ── */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(15,23,42,.4); backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+  animation: fadeIn .2s ease;
+}
+
+/* Modal content with header, body, and close button */
+.modal {
+  background: var(--white);
+  border-radius: 20px;
+  width: 640px; max-width: 100%;
+  max-height: 90vh; overflow-y: auto;
+  box-shadow: var(--shadow-lg);
+  animation: fadeIn .25s ease;
+}
+
+/* Modal header with title and close button, using sticky positioning to keep it visible */
+.modal-header {
+  padding: 24px 28px 20px;
+  border-bottom: 1px solid var(--sky-100);
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+  position: sticky; top: 0; background: white; z-index: 1;
+}
+
+/* Modal title with ID, title text, and meta information */
+.modal-close {
+  width: 32px; height: 32px; border-radius: 8px;
+  background: var(--sky-50); border: 1.5px solid var(--sky-200);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; font-size: 16px; flex-shrink: 0;
+  transition: background .15s;
+}
+
+/* Hover state for modal close button */
+.modal-close:hover { background: var(--sky-100); }
+.modal-body { padding: 24px 28px; }
+
+/* Ticket details grid with key-value pairs */
+.detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 20px; }
+.detail-item { background: var(--sky-50); border-radius: 10px; padding: 12px; }
+.detail-key { font-size: 11px; font-weight: 600; color: var(--gray-400); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
+.detail-val { font-size: 14px; font-weight: 600; color: var(--gray-800); }
+
+/* Description box with subtle background, border, and styled text */
+.description-box {
+  background: var(--sky-50); border: 1px solid var(--sky-200);
+  border-radius: var(--radius); padding: 16px; margin-bottom: 20px;
+  font-size: 14px; color: var(--gray-700); line-height: 1.6;
+}
+
+/* AI-generated insights section with badges, summaries, and meta information */
+.ai-ticket-box {
+  background: linear-gradient(135deg, #e0f2fe, #f0f9ff);
+  border: 1.5px solid var(--sky-300);
+  border-radius: var(--radius); padding: 18px;
+}
+
+/* AI-generated badge with gradient background and uppercase text */
+.ai-ticket-summary { font-size: 13px; color: var(--gray-700); line-height: 1.7; margin: 10px 0; }
+.ai-meta { display: flex; gap: 12px; flex-wrap: wrap; }
+.ai-meta-tag {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 12px; border-radius: 20px;
+  font-size: 12px; font-weight: 600;
+  background: white; border: 1px solid var(--sky-200); color: var(--sky-700);
+}
+
+/* Different colors for different meta tags */
+.loading-spinner {
+  width: 20px; height: 20px;
+  border: 2px solid var(--sky-200);
+  border-top-color: var(--sky-500);
+  border-radius: 50%;
+  animation: spin .6s linear infinite;
+  display: inline-block;
+}
+
+/* Empty state styling with icon and text */
+.empty-state { text-align: center; padding: 40px; color: var(--gray-400); }
+.empty-state-icon { font-size: 40px; margin-bottom: 12px; }
+.empty-state-text { font-size: 14px; }
+
+/* ── Responsive ── */
+@media (max-width: 1100px) {
+  .dashboard-grid { grid-template-columns: 1fr; }
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .charts-grid { grid-template-columns: 1fr; }
+}
+
+/* On smaller screens, hide the sidebar and adjust grid layouts for better readability */
+@media (max-width: 700px) {
+  .sidebar { display: none; }
+  .stats-grid { grid-template-columns: 1fr 1fr; }
+  .content { padding: 16px; }
+}
