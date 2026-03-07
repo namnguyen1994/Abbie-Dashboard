@@ -1,163 +1,396 @@
-const express = require('express'); //Import Express framework to create the API server
-const cors = require('cors');  //Import CORS middleware to enable cross-origin requests from the frontend
-const app = express(); //Create Express app instances
+/* Three important packages that help handle the API call and facilitate communication between front and backend */
+const express = require('express');
+const cors    = require('cors');
+const axios   = require('axios');   
+require ('dotenv').config(); // Load environment variables from .env file
 
-//Setup middleware for CORS and JSON parsing so that every incoming request can be handled properly, allowing the frontend to communicate with this backend API without issues.
-app.use(cors()); 
+const app = express();
+app.use(cors());
 app.use(express.json());
 
-/*______________________________________
-  Mock Data for Users and Tickets
-  - In a real application, this data would come from a database or external API (like Jira).
-  - For this demo, we are hardcoding some sample users and tickets to simulate the backend responses.
-________________________________________*/
+// Sample user login information to enable quick login
 const MOCK_USERS = [
-  { id: 'user-1', email: 'nam.nguyen@datamir.com', password: 'password123', name: 'Nam Nguyen', avatar: 'NN', role: 'Senior Developer' },
-  { id: 'user-2', email: 'abby.moyer@datamir.com', password: 'password123', name: 'Abby Moyer', avatar: 'AM', role: 'Director of Documentation' },
-  { id: 'user-3', email: 'andrea.cossio@datamir.com', password: 'password123', name: 'Andrea Cossio', avatar: 'AC', role: 'UX Designer' },
+  { id: 'u1', email: 'nam.nguyen@datamir.com',    password: 'password123', name: 'Nam Nguyen',    avatar: 'NN', role: 'Senior Developer' },
+  { id: 'u2', email: 'andrea.cossio@datamir.com', password: 'password123', name: 'Andrea Cossio', avatar: 'AC', role: 'Product Manager'  },
+  { id: 'u3', email: 'josh.moyer@datamir.com',    password: 'password123', name: 'Josh Moyer',    avatar: 'JM', role: 'QA Engineer'      },
 ];
 
-const MOCK_TICKETS = [
-  { id: 'BUG-101', key: 'BUG-101', type: 'Bug', priority: 'Critical', summary: 'Login page crashes on Safari 16.x when 2FA is enabled', description: 'Users on macOS Ventura with Safari 16.x experience a hard crash when attempting to complete 2-factor authentication flow.', status: 'In Progress', assignee: 'Nam Nguyen', reporter: 'Abby Moyer', created: '2024-01-15', updated: '2024-01-20', sprint: 'Sprint 24', storyPoints: 5, labels: ['authentication', 'safari', 'critical-path'], comments: 3, attachments: 2 },
-  { id: 'BUG-98', key: 'BUG-98', type: 'Bug', priority: 'High', summary: 'Data export generates malformed CSV when special characters present', description: 'The CSV export function fails to properly escape commas and quotation marks in field values.', status: 'Open', assignee: 'Unassigned', reporter: 'Abby Moyer', created: '2024-01-12', updated: '2024-01-18', sprint: 'Sprint 24', storyPoints: 3, labels: ['export', 'csv', 'data'], comments: 1, attachments: 0 },
-  { id: 'BUG-95', key: 'BUG-95', type: 'Bug', priority: 'Medium', summary: 'Notification bell count not resetting after viewing notifications', description: 'The unread notification counter persists even after the user has opened and viewed all notifications.', status: 'In Review', assignee: 'Nam Nguyen', reporter: 'Mike Chen', created: '2024-01-10', updated: '2024-01-19', sprint: 'Sprint 23', storyPoints: 2, labels: ['notifications', 'ui'], comments: 5, attachments: 1 },
-  { id: 'BUG-90', key: 'BUG-90', type: 'Bug', priority: 'Low', summary: 'Tooltip misalignment on dashboard widgets in Firefox', description: 'Hover tooltips are rendering 20px to the right of their intended position in Firefox 121.', status: 'Done', assignee: 'Andrea Cossio', reporter: 'Abby Moyer', created: '2024-01-05', updated: '2024-01-15', sprint: 'Sprint 23', storyPoints: 1, labels: ['firefox', 'tooltip', 'css'], comments: 2, attachments: 0 },
-  { id: 'STORY-45', key: 'STORY-45', type: 'Story', priority: 'High', summary: 'As a user, I want to filter dashboard by date range to analyze trends', description: 'Implement a date range picker on the main dashboard that filters all widget data accordingly.', status: 'In Progress', assignee: 'Andrea Cossio', reporter: 'Abby Moyer', created: '2024-01-08', updated: '2024-01-20', sprint: 'Sprint 24', storyPoints: 8, labels: ['dashboard', 'analytics', 'filters'], comments: 7, attachments: 3 },
-  { id: 'STORY-42', key: 'STORY-42', type: 'Story', priority: 'Medium', summary: 'As an admin, I want to manage team permissions via a role matrix', description: 'Build a permission management interface allowing admins to assign granular permissions to roles.', status: 'Open', assignee: 'Nam Nguyen', reporter: 'Alex Johnson', created: '2024-01-06', updated: '2024-01-16', sprint: 'Sprint 24', storyPoints: 13, labels: ['admin', 'permissions', 'rbac'], comments: 4, attachments: 1 },
-  { id: 'STORY-38', key: 'STORY-38', type: 'Story', priority: 'High', summary: 'As a user, I want real-time collaboration indicators on shared documents', description: 'Show live cursors and user presence indicators when multiple users are editing the same document.', status: 'Done', assignee: 'Mike Chen', reporter: 'Sarah Lee', created: '2023-12-20', updated: '2024-01-10', sprint: 'Sprint 23', storyPoints: 10, labels: ['collaboration', 'real-time', 'websocket'], comments: 12, attachments: 4 },
-  { id: 'TASK-201', key: 'TASK-201', type: 'Task', priority: 'Medium', summary: 'Upgrade Node.js runtime to v20 LTS across all services', description: 'Migrate all backend microservices from Node.js 18 to Node.js 20 LTS. Update Dockerfiles, CI/CD pipelines.', status: 'In Progress', assignee: 'Vy Lam', reporter: 'Maryam Rehman', created: '2024-01-14', updated: '2024-01-21', sprint: 'Sprint 24', storyPoints: 5, labels: ['infrastructure', 'nodejs', 'upgrade'], comments: 2, attachments: 0 },
-  { id: 'TASK-198', key: 'TASK-198', type: 'Task', priority: 'Low', summary: 'Write unit tests for UserAuthService covering edge cases', description: 'Achieve 90%+ test coverage for the UserAuthService module, focusing on edge cases.', status: 'Open', assignee: 'Julia Jin', reporter: 'Josh Moyer', created: '2024-01-11', updated: '2024-01-18', sprint: 'Sprint 24', storyPoints: 3, labels: ['testing', 'unit-tests', 'auth'], comments: 1, attachments: 0 },
-  { id: 'TASK-195', key: 'TASK-195', type: 'Task', priority: 'High', summary: 'Set up Datadog APM monitoring for production environment', description: 'Integrate Datadog APM agent, configure custom dashboards for key SLIs and alerting rules.', status: 'In Review', assignee: 'Mike Chen', reporter: 'Emma Bruce', created: '2024-01-09', updated: '2024-01-20', sprint: 'Sprint 23', storyPoints: 8, labels: ['monitoring', 'devops', 'datadog'], comments: 6, attachments: 2 },
-  { id: 'TASK-190', key: 'TASK-190', type: 'Task', priority: 'Medium', summary: 'Refactor database connection pool configuration', description: 'Review and optimize PostgreSQL connection pool settings to reduce connection overhead.', status: 'Done', assignee: 'Nam Nguyen', reporter: 'Josh Moyer', created: '2024-01-03', updated: '2024-01-12', sprint: 'Sprint 23', storyPoints: 4, labels: ['database', 'performance', 'postgresql'], comments: 3, attachments: 1 },
-  { id: 'EPIC-12', key: 'EPIC-12', type: 'Other', priority: 'High', summary: 'Q1 2024 Performance Optimization Initiative', description: 'Epic tracking all performance improvement work for Q1. Target: reduce P95 API latency by 40%.', status: 'In Progress', assignee: 'Maryam Rehman', reporter: 'Vy Lam', created: '2024-01-01', updated: '2024-01-21', sprint: 'Sprint 24', storyPoints: 40, labels: ['epic', 'performance', 'q1-2024'], comments: 15, attachments: 5 },
-  { id: 'DOC-55', key: 'DOC-55', type: 'Other', priority: 'Low', summary: 'Update API documentation for v2.1 endpoints', description: 'Revise Swagger/OpenAPI specs for all new endpoints introduced in the v2.1 release.', status: 'Open', assignee: 'Unassigned', reporter: 'Julia Jin', created: '2024-01-13', updated: '2024-01-17', sprint: 'Sprint 24', storyPoints: 2, labels: ['documentation', 'api'], comments: 0, attachments: 0 },
-];
+/* 
+  It is a helper function used to call Gemini AI and get the response based on the prompt we send. 
+  It uses the axios package to make a POST request to the Gemini API endpoint, passing the prompt and generation configuration. 
+  The function returns the generated text from Gemini or an empty string if there was an issue with the response structure.
+*/
+async function callGemini(prompt) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${CONFIG.GEMINI_API_KEY}`;
 
-/*______________________________________
-  Helper function to generate AI analysis based on the current tickets.
-  - This simulates what an AI might return after analyzing the ticket data, providing insights and suggestions for the team.
-  - In a real application, this would involve calling an AI service with the ticket data and processing the response.
-  - For this demo, we are hardcoding the analysis logic to return consistent insights based on the mock data.
-________________________________________*/
-const generateAIAnalysis = (tickets) => {
-  const bugCount = tickets.filter(t => t.type === 'Bug').length;
-  const openCount = tickets.filter(t => t.status === 'Open').length;
-  const criticalBugs = tickets.filter(t => t.type === 'Bug' && t.priority === 'Critical').length;
-  const inProgressCount = tickets.filter(t => t.status === 'In Progress').length;
+  const response = await axios.post(url, { 
+    contents: [{ parts: [{ text: prompt }] }],
+    generationConfig: { temperature: 0.4, maxOutputTokens: 1500 },
+  });
+
+  // Navigate the response structure to extract the generated text, with safety checks for each level
+  return response.data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+}
+
+/*
+  This function is responsible for fetching Jira tickets using the Jira API. 
+  It constructs a JQL query to retrieve issues from a specific project, orders them by their last update time, and limits the results to a specified maximum. 
+  The function uses basic authentication with the Jira API token and email, and returns an array of issues or an empty array if there are no issues found.
+*/
+async function fetchJiraTickets(maxResults = 50) {
+  const jql   = `project=${CONFIG.JIRA_PROJECT} ORDER BY updated DESC`;
+  const url   = `${CONFIG.JIRA_BASE_URL}/rest/api/3/search/jql`;
+  const token = Buffer.from(`${CONFIG.JIRA_EMAIL}:${CONFIG.JIRA_API_TOKEN}`).toString('base64');
+
+  // Make the GET request to the Jira API with the appropriate headers and query parameters
+  const response = await axios.get(url, {
+    headers: { Authorization: `Basic ${token}`, Accept: 'application/json' },
+    params: {
+      jql,
+      maxResults,
+      fields: '*all'
+    },
+  });
+
+  // Safely navigate the response to return the issues array, or an empty array if not present
+  return response.data.issues || [];
+}
+
+/*
+  This function takes a raw Jira issue object and transforms it into a normalized ticket format that the frontend can easily work with. 
+  It extracts relevant fields such as title, description, status, priority, type, assignee, reporter, sprint, story points, and more. 
+*/
+function normaliseTicket(issue) {
+  // If the issue or its fields are missing, return a default ticket object with placeholder values to prevent frontend errors
+  if (!issue || !issue.fields) {
+    return {
+      id          : issue?.key || 'UNKNOWN',
+      title       : '(no data)',
+      description : '',
+      status      : 'Unknown',
+      priority    : 'Medium',
+      type        : 'other',
+      assignee    : 'Unassigned',
+      reporter    : 'Unknown',
+      sprint      : 'Backlog',
+      storyPoints : 0,
+      created     : '',
+      updated     : '',
+      labels      : [],
+      comments    : 0,
+      attachments : 0,
+      aiSummary   : null,
+      aiCategory  : null,
+    };
+  }
+
+  // Extract fields from the issue for easier access
+  const f = issue.fields;
+
+  //  Determine the ticket type based on the issue type name, with a fallback to 'other' if it doesn't match known types
+  const rawType = (f.issuetype?.name || 'Other').toLowerCase();
+  let type = 'other';
+  if (rawType.includes('bug')){
+    type = 'bug';
+  } else if (rawType.includes('story')){
+    type = 'story';
+  } else if (rawType.includes('task')){
+    type = 'task';
+  }
+
+  // Return a normalized ticket object with all the necessary fields for the frontend, using safe navigation and default values where appropriate
   return {
-    summary: `Your team is managing ${tickets.length} tickets across ${new Set(tickets.map(t => t.sprint)).size} sprints. With ${criticalBugs} critical bug${criticalBugs !== 1 ? 's' : ''} requiring immediate attention, the overall workload is moderately high. ${inProgressCount} tickets are actively in progress, indicating good team velocity.`,
-    insights: [
-      { type: 'warning', title: 'Critical Bug Alert', detail: 'BUG-101 (Safari 2FA crash) is a critical-path issue affecting user authentication. Recommend prioritizing resolution this sprint to prevent user churn.' },
-      { type: 'info', title: 'Story Point Distribution', detail: 'STORY-42 carries 13 story points — the highest in the current sprint. Consider breaking it into smaller subtasks to maintain predictable velocity.' },
-      { type: 'success', title: 'Sprint Velocity', detail: 'Sprint 23 closed with 17 completed story points. Current Sprint 24 is tracking similarly, suggesting consistent team performance.' },
-      { type: 'warning', title: 'Unassigned Tickets', detail: `${tickets.filter(t => t.assignee === 'Unassigned').length} ticket(s) are unassigned. Assign owners to prevent blockers.` },
-    ],
-    suggestions: [
-      'Conduct a 30-minute triage session to address the 2 unassigned tickets and prevent sprint spillover.',
-      'Consider pairing a senior dev with BUG-101 given its critical priority and authentication impact.',
-      'The Q1 Performance Epic (EPIC-12) has 40 story points — break down into sprint-sized milestones with clear owners.',
-      'Increase test coverage task (TASK-198) should be prioritized alongside feature work to maintain code health.',
-      'Schedule a retrospective on the tooltip bug pattern — similar CSS issues may exist in other browsers.',
-    ],
-    riskScore: criticalBugs > 0 ? 72 : 45,
-    velocityTrend: 'stable',
+    id          : issue.key,
+    title       : f.summary                              || '(no summary)',
+    description : f.description?.content?.[0]?.content?.[0]?.text || f.description || '',
+    status      : f.status?.name                         || 'Unknown',
+    priority    : f.priority?.name                       || 'Medium',
+    type,
+    assignee    : f.assignee?.displayName                || 'Unassigned',
+    reporter    : f.reporter?.displayName                || 'Unknown',
+    sprint      : f.customfield_10020?.[0]?.name         || 'Backlog',
+    storyPoints : f.customfield_10016                    || 0,
+    created     : (f.created || '').split('T')[0],
+    updated     : (f.updated || '').split('T')[0],
+    labels      : f.labels                              || [],
+    comments    : f.comment?.total                      || 0,
+    attachments : f.attachment?.length                  || 0,
+    aiSummary   : null,
+    aiCategory  : null,
   };
-};
+}
 
-/*______________________________________
-  API Routes
-  - Receives the user's login credentials and checks them against the mock user data. 
-    - If valid, it returns a mock JWT token and user info (excluding the password). 
-    - If invalid, it returns a 401 error with a message prompting the user to check their Jira email and password.
-    - Handles user logout by simply returning a success message 
+// ── AUTH (mocked for demo) ─────────────────────────────────
+app.get('/api/auth/users', (req, res) => {
+  res.json({ users: MOCK_USERS.map(({ password: _, ...u }) => u) }); // Return users without passwords for security reasons
+});
+
+/* 
+This endpoint handles user login by checking the provided email and password against the mock users. 
+If the credentials are valid, it returns a mock token and user information (excluding the password). 
+If not, it responds with a 401 Unauthorized status and an error message.
 */
 app.post('/api/auth/login', (req, res) => {
-  const { email, password } = req.body;  //Extract email and password from the request body
-  const user = MOCK_USERS.find(u => u.email === email && u.password === password); //Find a user in the mock data that matches the provided email and password
-  if (!user) return res.status(401).json({ error: 'Invalid credentials. Please check your Jira email and password.' }); //If no matching user is found, return a 401 Unauthorized response with an error message
-  const { password: _, ...safeUser } = user; //Destructure the user object to exclude the password before sending it back in the response
-  res.json({ token: `mock-jwt-token-${user.id}`, user: safeUser }); //If a matching user is found, return a JSON response containing a mock JWT token and the user information (excluding the password)
+  const { email, password } = req.body;
+  const user = MOCK_USERS.find(u => u.email === email && u.password === password);
+  if (!user) return res.status(401).json({ error: 'Invalid credentials.' });
+  const { password: _, ...safeUser } = user; // Exclude password from the user object before sending it back
+  res.json({ token: `token-${user.id}`, user: safeUser });// Return user info without password for security reasons
 });
 
-/*______________________________________
-This route handle the logout action.
-    If successful, it returns a JSON response with a message confirming that the user has been logged out successfully.
-*/
+//This endpoint simulates user logout by simply returning a success message.
 app.post('/api/auth/logout', (req, res) => res.json({ message: 'Logged out successfully' }));
 
-/*______________________________________
-    This route handles fetching tickets with optional filtering based on query parameters.
-    - It extracts the type, status, sprint, and search query parameters from the request.
-    - It filters the mock tickets based on the provided parameters, allowing for flexible querying of the ticket data.
-    - Finally, it returns a JSON response containing the filtered list of tickets and the total count of those tickets.
+/*
+Get all tickets: This endpoint fetches Jira tickets using the fetchJiraTickets function, normalizes them with the normaliseTicket function, and returns the list of tickets along with the total count.
+If there's an error during the fetch or normalization process, it logs detailed error information and responds with a 500 status and an error message, along with an empty tickets array and a total of 0 to prevent frontend issues.
 */
-app.get('/api/tickets', (req, res) => {
-  const { type, status, sprint, search } = req.query;
-  let filtered = [...MOCK_TICKETS];
-  if (type && type !== 'All') filtered = filtered.filter(t => t.type === type);
-  if (status && status !== 'All') filtered = filtered.filter(t => t.status === status);
-  if (sprint && sprint !== 'All') filtered = filtered.filter(t => t.sprint === sprint);
-  if (search) { const q = search.toLowerCase(); filtered = filtered.filter(t => t.summary.toLowerCase().includes(q) || t.key.toLowerCase().includes(q)); }
-  res.json({ tickets: filtered, total: filtered.length });
+app.get('/api/tickets', async (req, res) => {
+  try {
+    const issues  = await fetchJiraTickets(50);
+    const tickets = issues.map(normaliseTicket);
+    res.json({ tickets, total: tickets.length });
+  } catch (err) {
+    console.error('Full error:', err.response?.data);
+    console.error('Status:', err.response?.status);
+    console.error('URL called:', err.config?.url);
+    res.status(500).json({ error: err.message, tickets: [], total: 0 });
+  }
 });
 
-/*______________________________________
-    This route handles fetching a specific ticket by its ID.
-    - It extracts the ticket ID from the route parameters and searches for a matching ticket in the mock data.
-    - If a ticket with the specified ID is found, it returns that ticket as a JSON response.
-    - If no matching ticket is found, it returns a 404 Not Found response with an error message indicating that the ticket was not found.
+/*
+Get single ticket: This endpoint retrieves a specific Jira ticket by its ID, normalizes it, and returns the ticket data. 
+If the ticket is not found, it responds with a 404 status and a "Ticket not found" message. 
+For other errors, it responds with a 500 status and the error message.
 */
-app.get('/api/tickets/:id', (req, res) => {
-  const ticket = MOCK_TICKETS.find(t => t.id === req.params.id);
-  if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
-  res.json(ticket);
+app.get('/api/tickets/:id', async (req, res) => {
+  try {
+    const token    = Buffer.from(`${CONFIG.JIRA_EMAIL}:${CONFIG.JIRA_API_TOKEN}`).toString('base64'); // Create a basic auth token using Jira email and API token
+    const response = await axios.get(`${CONFIG.JIRA_BASE_URL}/rest/api/3/issue/${req.params.id}`, { // Make a GET request to the Jira API to fetch the issue details by ID
+      headers: { Authorization: `Basic ${token}`, Accept: 'application/json' },
+    });
+    res.json(normaliseTicket(response.data));
+  } catch (err) {
+    const status = err.response?.status === 404 ? 404 : 500;
+    res.status(status).json({ error: status === 404 ? 'Ticket not found' : err.message });
+  }
 });
 
-/*______________________________________
-    This route handles fetching aggregated statistics about the tickets.
-    - It calculates the total number of tickets and counts how many tickets fall into each type, status, and priority category.
-    - It also provides a list of sprints and calculates the completion rate based on how many tickets are marked as 'Done' compared to the total number of tickets.
-    - Finally, it returns all this aggregated information as a JSON response.
+/*
+Get stats: This endpoint fetches Jira tickets, normalizes them, and calculates various statistics such as total tickets, open tickets, in-progress tickets, done tickets, critical priority tickets, and counts by type (bug, story, task, other). 
+It returns these statistics in a JSON response. If there's an error during the process, it responds with a 500 status and the error message.
 */
-app.get('/api/stats', (req, res) => {
-  const byType = {}, byStatus = {}, byPriority = {};
-  MOCK_TICKETS.forEach(t => {
-    byType[t.type] = (byType[t.type] || 0) + 1; //Count the number of tickets for each type (e.g., Bug, Story, Task) and store it in the byType object
-    byStatus[t.status] = (byStatus[t.status] || 0) + 1; //Count the number of tickets for each status (e.g., Open, In Progress, Done) and store it in the byStatus object   
-    byPriority[t.priority] = (byPriority[t.priority] || 0) + 1; //Count the number of tickets for each priority level (e.g., Low, Medium, High) and store it in the byPriority object
-  });
-  res.json({ total: MOCK_TICKETS.length, byType, byStatus, byPriority, sprints: ['Sprint 23', 'Sprint 24'], completionRate: Math.round((byStatus['Done'] || 0) / MOCK_TICKETS.length * 100) }); //Return a JSON response containing the total number of tickets, the counts by type, status, and priority, a list of sprints, and the completion rate calculated as the percentage of tickets marked as 'Done' out of the total number of tickets.
+app.get('/api/stats', async (req, res) => {
+  try {
+    const issues  = await fetchJiraTickets(100);
+    const tickets = issues.map(normaliseTicket);
+
+    // Helper function to count tickets based on a specific key and value, used to calculate various stats
+    const count = (key, val) => tickets.filter(t => t[key] === val).length;
+    res.json({
+      total     : tickets.length,
+      open      : count('status', 'Open') + count('status', 'To Do'),
+      inProgress: count('status', 'In Progress'),
+      done      : count('status', 'Done'),
+      critical  : count('priority', 'Critical') + count('priority', 'Highest'),
+      byType    : {
+        bug  : count('type', 'bug'),
+        story: count('type', 'story'),
+        task : count('type', 'task'),
+        other: count('type', 'other'),
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-/*______________________________________
-    This route handles fetching AI-generated analysis based on the current tickets.
-    - It simulates a delay to mimic the time it would take for an AI service to process the ticket data and generate insights.
-    - It calls the generateAIAnalysis helper function, passing in the mock tickets, to get a structured analysis that includes a summary, insights, suggestions, a risk score, and a velocity trend.
-    - Finally, it returns this AI-generated analysis as a JSON response.
-________________________________________*/
-app.get('/api/ai/analysis', (req, res) => {
-  setTimeout(() => res.json(generateAIAnalysis(MOCK_TICKETS)), 800); //Simulate a delay of 800 milliseconds before sending the AI analysis response to mimic processing time
-});
-
-/*______________________________________
-    This route handles fetching AI-generated suggestions for a specific ticket based on its ID.
-    - It extracts the ticket ID from the request body and searches for a matching ticket in the mock data.
-    - If a ticket with the specified ID is found, it generates suggestions based on the ticket type and other attributes, simulating what an AI might recommend for that ticket.
+/*
+This endpoint takes a list of tickets and sends them to Gemini AI for categorization and summarization.
+It constructs a prompt that describes the task to Gemini, including the rules for categorizing tickets and a formatted list of the tickets to analyze.
+If successful, the original tickets are enriched with the AI's category and summary, and returned in the response.
 */
-app.post('/api/ai/ticket-suggestion', (req, res) => {
-  const { ticketId } = req.body;
-  const ticket = MOCK_TICKETS.find(t => t.id === ticketId);
-  if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
-  const suggestions = {
-    Bug: ['Reproduce in a clean environment to confirm the issue is not environment-specific.', 'Add a regression test to the test suite once resolved to prevent recurrence.', 'Check if related issues exist in the backlog that may share the same root cause.'],
-    Story: ['Break this story into smaller sub-tasks (≤5 story points each) for better sprint tracking.', 'Ensure acceptance criteria are clearly defined before development begins.', 'Consider a spike ticket to validate technical approach if uncertainty exists.'],
-    Task: ['Document the completion criteria clearly before starting.', 'Identify dependencies and communicate them to the team lead.', 'Schedule a quick review checkpoint at 50% completion.'],
-    Other: ['Link related tickets to this item for full traceability.', 'Set a target completion date to avoid indefinite scope creep.', 'Assign a clear owner even for non-standard ticket types.'],
-  };
-  //Simulate a delay of 600 milliseconds before sending the AI suggestions response to mimic processing time, and return a JSON response containing the ticket ID, AI-generated suggestions based on the ticket type, an estimated effort recommendation based on the story points, and a risk level assessment based on the ticket priority.
-  setTimeout(() => res.json({ ticketId, aiSuggestions: suggestions[ticket.type] || suggestions.Other, estimatedEffort: ticket.storyPoints > 8 ? 'Consider splitting this ticket' : 'Effort seems appropriate', riskLevel: ticket.priority === 'Critical' ? 'High' : ticket.priority === 'High' ? 'Medium' : 'Low' }), 600);
+app.post('/api/ai/categorize', async (req, res) => {
+  const { tickets } = req.body;
+  if (!tickets?.length) return res.json({ tickets: [] });
+
+  const list = tickets.map((t, i) =>
+    `[${i}] ID:${t.id} | Type:${t.type} | Title:${t.title} | Desc:${(t.description || '').slice(0, 120)}` // Format each ticket as a single line with key details for the AI to analyze
+  ).join('\n');
+
+  // Construct a prompt for Gemini AI that instructs it to categorize each ticket and provide a summary, with clear rules for categorization and a formatted list of tickets to analyze
+  const prompt = `
+You are a Jira ticket analyst. For each ticket below, return a JSON array (same order) where each object has:
+  - "index": the number in brackets
+  - "category": one of "Bug", "Defect", "Story", "Task", or "Other"
+  - "summary": a 1-2 sentence plain-English summary of what this ticket is about
+
+Rules for category:
+- Bug    = software defect in existing functionality
+- Defect = data or config issue (not code), or known limitation
+- Story  = user-facing feature or user story
+- Task   = internal work (infra, docs, testing, upgrade)
+- Other  = anything that does not fit above
+
+Tickets:
+${list}
+
+Respond ONLY with a valid JSON array, no extra text, no markdown.
+`;
+
+/*
+Call Gemini AI with constructed prompt and handle the response.
+If the response is successful, parse the JSON and enrich the original tickets with the AI's category and summary.
+If there's an error during the AI call or response parsing, log the error and return the original tickets without enrichment to ensure the frontend can still display them.
+*/
+  try {
+    const raw    = await callGemini(prompt);
+    const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim());
+
+    const enriched = tickets.map((t, i) => {
+      const ai = parsed.find(p => p.index === i) || {};
+      return {
+        ...t,
+        type      : (ai.category || t.type).toLowerCase().replace('defect', 'bug'),
+        aiCategory: ai.category || null,
+        aiSummary : ai.summary  || null,
+      };
+    });
+
+    res.json({ tickets: enriched });
+  } catch (err) {
+    console.error('Gemini categorise error:', err.message);
+    res.json({ tickets }); 
+  }
 });
 
-//Start the server and listen on the specified port (defaulting to 5000 if not set in the environment variables). Log a message to the console indicating that the API is running and on which port it is accessible.
+/*
+This endpoint retrieves a specific Jira ticket by its ID, constructs a detailed prompt about the ticket, and sends it to Gemini AI for analysis.
+The prompt instructs Gemini to provide a summary, risk level, estimated resolution time, and suggested actions based on the ticket's details.
+If the AI call is successful, it parses the response and returns the analysis in JSON format.
+Otherwise, it handles errors by returning appropriate status codes and error messages, ensuring the frontend can handle the response gracefully.
+*/
+app.get('/api/ai/ticket/:id', async (req, res) => {
+  try {
+    const token    = Buffer.from(`${CONFIG.JIRA_EMAIL}:${CONFIG.JIRA_API_TOKEN}`).toString('base64');
+    const response = await axios.get(`${CONFIG.JIRA_BASE_URL}/rest/api/3/issue/${req.params.id}`, {
+      headers: { Authorization: `Basic ${token}`, Accept: 'application/json' },
+    });
+    const ticket = normaliseTicket(response.data);
+
+    const prompt = `
+You are a senior software engineer reviewing a Jira ticket.
+Ticket ID   : ${ticket.id}
+Title       : ${ticket.title}
+Type        : ${ticket.type}
+Priority    : ${ticket.priority}
+Status      : ${ticket.status}
+Description : ${ticket.description || 'No description provided.'}
+
+Return a JSON object with these keys:
+- "aiSummary": 2-3 sentence human-readable summary
+- "riskLevel": "Low" | "Medium" | "High" | "Critical"
+- "estimatedResolution": e.g. "1-2 days", "3-5 days", "1 week+"
+- "suggestedActions": array of 2-3 short action strings
+
+Respond ONLY with valid JSON, no markdown.
+`;
+
+    const raw  = await callGemini(prompt);
+    const data = JSON.parse(raw.replace(/```json|```/g, '').trim());
+    res.json(data);
+  } catch (err) {
+    const status = err.response?.status === 404 ? 404 : 500;
+    res.status(status).json({ error: err.message });
+  }
+});
+
+//This endpoint takes a list of tickets and sends them to Gemini AI for analysis to provide insights on team health, potential risks, and suggestions for improvement.
+app.post('/api/ai/analysis', async (req, res) => {
+  const { tickets } = req.body;
+  if (!tickets?.length) return res.json({ summary: 'No tickets to analyse.', insights: [], suggestions: [] });
+
+  const bugCount      = tickets.filter(t => t.type === 'bug' || t.type === 'defect').length;
+  const criticalCount = tickets.filter(t => t.priority === 'Critical' || t.priority === 'Highest').length;
+  const unassigned    = tickets.filter(t => t.assignee === 'Unassigned').length;
+
+  // Construct a prompt for Gemini AI that provides an overview of the tickets and asks for a summary of team health, insights, and suggestions for improvement.
+  const prompt = `
+You are an agile team coach reviewing ${tickets.length} Jira tickets.
+Stats: ${bugCount} bugs/defects, ${criticalCount} critical-priority tickets, ${unassigned} unassigned.
+Top tickets: ${tickets.slice(0, 8).map(t => `${t.id}(${t.type},${t.priority})`).join(', ')}
+
+Return a JSON object with:
+- "summary": 3-4 sentence paragraph overview of team health
+- "insights": array of 3-4 objects { "type": "warning"|"positive"|"info", "text": "..." }
+- "suggestions": array of 3 objects { "priority": "P1"|"P2"|"P3", "action": "short title", "detail": "one sentence detail" }
+
+Respond ONLY with valid JSON, no markdown.
+`;
+
+  try {
+    const raw  = await callGemini(prompt);
+    const data = JSON.parse(raw.replace(/```json|```/g, '').trim());
+    res.json(data);
+  } catch (err) {
+    console.error('Analysis AI error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+//This endpoint generates professional release notes in markdown format based on a list of tickets, the release version, and an optional knowledge base URL for tone and terminology reference.
+app.post('/api/ai/release-notes', async (req, res) => {
+  const { tickets, version, kbUrl } = req.body;
+  if (!tickets?.length) return res.status(400).json({ error: 'No tickets provided' });
+
+  const kbSource = kbUrl || CONFIG.KB_URL;
+  const bugs     = tickets.filter(t => t.type === 'bug' || t.type === 'defect');
+  const stories  = tickets.filter(t => t.type === 'story');
+  const tasks    = tickets.filter(t => t.type === 'task');
+  const others   = tickets.filter(t => t.type === 'other');
+
+  // Helper function to format a list of tickets into a markdown bullet list for the AI prompt, showing the ticket ID and title. If the list is empty, it returns "(none)".
+  const fmt      = (arr) => arr.map(t => `- ${t.id}: ${t.title}`).join('\n') || '  (none)'; 
+
+  const prompt = `
+You are a technical writer creating professional release notes for version "${version || 'v1.0'}".
+
+Company knowledge base URL (use for tone, style, and product terminology): ${kbSource}
+
+Ticket summary:
+[Bug Fixes & Defects]
+${fmt(bugs)}
+
+[New Features / Stories]
+${fmt(stories)}
+
+[Tasks / Improvements]
+${fmt(tasks)}
+
+[Other]
+${fmt(others)}
+
+Write professional, customer-facing release notes in markdown. Structure:
+1. ## Release Notes - ${version || 'v1.0'}  (include today's date)
+2. ### Overview  (1 short paragraph)
+3. ### Bug Fixes  (bullet list, friendly language)
+4. ### New Features  (bullet list)
+5. ### Improvements  (bullet list)
+6. ### Notes  (any caveats or upgrade instructions)
+
+Use the company knowledge base URL provided for proper product naming and terminology.
+Return ONLY the markdown text, no extra commentary.
+`;
+
+  try {
+    const notes = await callGemini(prompt);
+    res.json({ releaseNotes: notes });
+  } catch (err) {
+    console.error('Release notes error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+//Start the backend server on the specified port and log a message indicating the API is running and the URL to access it.
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`API running on port ${PORT}`));
+app.listen(PORT, () => console.log(`API running on http://localhost:${PORT}`));

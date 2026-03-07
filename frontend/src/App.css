@@ -1,8 +1,9 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&family=Playfair+Display:wght@600;700&display=swap');
 
+/* App-wide styles, color palette, and component styling for the Abby Dashboard frontend application. */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-/* ── COLOR PALETTE & SHADOWS ── */
+/* color palette for the application */
 :root {
   --sky-50:  #f0f9ff;
   --sky-100: #e0f2fe;
@@ -34,7 +35,7 @@
   --shadow-lg: 0 10px 40px rgba(14,165,233,.16), 0 4px 12px rgba(14,165,233,.10);
 }
 
-/* ── BASE STYLES ── */
+/* The base styles for the entire application */
 body {
   font-family: 'DM Sans', sans-serif;
   background: var(--sky-50);
@@ -43,12 +44,12 @@ body {
   line-height: 1.6;
 }
 
-/* ── Scrollbar ── */
+/* The scrollbar styles */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: var(--sky-100); }
 ::-webkit-scrollbar-thumb { background: var(--sky-300); border-radius: 3px; }
 
-/* ── Animations ── */
+/* The animations style */
 @keyframes fadeIn  { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
 @keyframes slideIn { from { opacity:0; transform:translateX(-16px);} to { opacity:1; transform:translateX(0); } }
 @keyframes pulse   { 0%,100% { opacity:1; } 50% { opacity:.5; } }
@@ -59,7 +60,7 @@ body {
 .fade-in   { animation: fadeIn  .4s ease both; }
 .slide-in  { animation: slideIn .3s ease both; }
 
-/* ── LOGIN PAGE ── */
+/* Login Page Styles */
 .login-page {
   min-height: 100vh;
   display: flex;
@@ -70,7 +71,7 @@ body {
   overflow: hidden;
 }
 
-/* Subtle background pattern using SVG */
+/* Background pattern for the login page */
 .login-page::before {
   content: '';
   position: absolute;
@@ -78,7 +79,7 @@ body {
   background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
 }
 
-/* Centered login card */
+/* Login Card Styles */
 .login-card {
   background: var(--white);
   border-radius: 24px;
@@ -101,7 +102,7 @@ body {
   animation: glow 3s ease infinite;
 }
 
-/* Using 'Playfair Display' for a more sophisticated look */
+/* Login Logo Text styles */
 .login-logo-text { font-family: 'Playfair Display', serif; font-size: 24px; color: var(--sky-700); font-weight: 700; }
 .login-logo-text span { color: var(--sky-400); }
 .login-subtitle { font-size: 14px; color: var(--gray-500); margin-bottom: 28px; }
@@ -179,7 +180,7 @@ body {
 .demo-fill { font-size: 10px; color: var(--sky-500); }
 .error-msg { background: #fef2f2; color: var(--red); border: 1px solid #fecaca; border-radius: 8px; padding: 10px 12px; font-size: 13px; margin-bottom: 14px; }
 
-/* ── DASHBOARD LAYOUT ── */
+/* Dashboard layout styles */
 .app { display: flex; min-height: 100vh; }
 
 /* Sidebar with sticky positioning, custom scrollbar, and elegant styling */
@@ -258,7 +259,7 @@ body {
 .user-name { font-size: 13px; font-weight: 600; color: var(--gray-700); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .user-role { font-size: 11px; color: var(--gray-400); }
 
-/* ── MAIN CONTENT ── */
+/* Main Content Styles */
 .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
 
 /* Topbar with sticky positioning, search bar, and action buttons */
@@ -308,7 +309,7 @@ body {
 
 .content { flex: 1; padding: 28px; overflow-y: auto; }
 
-/* ── STAT CARDS ── */
+/* Statistics Grid Display style */
 .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin-bottom: 28px; }
 .stat-card {
   background: var(--white);
@@ -338,11 +339,11 @@ body {
 .stat-change.down { color: var(--red); }
 .stat-icon { font-size: 24px; position: absolute; top: 18px; right: 18px; }
 
-/* ── GRID LAYOUT ── */
+/* Layout for grid */
 .dashboard-grid { display: grid; grid-template-columns: 1fr 340px; gap: 22px; }
 .dashboard-col { display: flex; flex-direction: column; gap: 22px; }
 
-/* ── CARDS ── */
+/* Card Styles */
 .card {
   background: var(--white);
   border-radius: 16px;
@@ -364,7 +365,7 @@ body {
 .card-title-icon { font-size: 16px; }
 .card-body { padding: 18px 22px; }
 
-/* ── CATEGORY TABS ── */
+/* Category Tabs Styles */
 .category-tabs { display: flex; gap: 6px; padding: 18px 22px 0; flex-wrap: wrap; }
 .cat-tab {
   padding: 7px 16px;
@@ -383,7 +384,7 @@ body {
 .cat-tab.other     { color: #d97706;         background: #fffbeb;        border-color: #fde68a; }
 .cat-tab.active    { filter: saturate(1.2); box-shadow: 0 2px 8px rgba(0,0,0,.1); transform: translateY(-1px); }
 
-/* ── TICKET LIST ── */
+/* Ticket Listing style */
 .ticket-list { padding: 12px 22px 18px; display: flex; flex-direction: column; gap: 8px; max-height: 480px; overflow-y: auto; }
 .ticket-row {
   display: flex; align-items: center; gap: 12px;
@@ -430,7 +431,7 @@ body {
 .s-in-progress { background: #fef3c7; color: #b45309; }
 .s-done        { background: #dcfce7; color: #15803d; }
 
-/* ── AI PANEL ── */
+/* AI Panel style */
 .ai-summary-box {
   background: linear-gradient(135deg, var(--sky-50) 0%, var(--white) 100%);
   border: 1.5px solid var(--sky-200);
@@ -486,7 +487,7 @@ body {
 .suggestion-action { font-weight: 700; color: var(--gray-800); margin-bottom: 2px; }
 .suggestion-detail { color: var(--gray-500); }
 
-/* ── CHARTS ── */
+/* Charts Grid Styles */
 .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
 .donut-wrap { display: flex; align-items: center; gap: 24px; }
 .donut-svg { flex-shrink: 0; }
@@ -502,7 +503,7 @@ body {
 .bar-track { height: 8px; background: var(--sky-100); border-radius: 4px; overflow: hidden; }
 .bar-fill  { height: 100%; border-radius: 4px; transition: width .6s ease; }
 
-/* ── TICKET MODAL ── */
+/* Ticket Modal */
 .modal-overlay {
   position: fixed; inset: 0; z-index: 1000;
   background: rgba(15,23,42,.4); backdrop-filter: blur(4px);
@@ -586,7 +587,7 @@ body {
 .empty-state-icon { font-size: 40px; margin-bottom: 12px; }
 .empty-state-text { font-size: 14px; }
 
-/* ── Responsive ── */
+/* Ensure the app is responsive base on screensize */
 @media (max-width: 1100px) {
   .dashboard-grid { grid-template-columns: 1fr; }
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
@@ -598,4 +599,205 @@ body {
   .sidebar { display: none; }
   .stats-grid { grid-template-columns: 1fr 1fr; }
   .content { padding: 16px; }
+}
+
+/* App shell (replaces .app) */
+.app-shell { display: flex; min-height: 100vh; }
+
+/* Sidebar logo icon as emoji/text */
+.sidebar-logo {
+  display: flex; align-items: center; gap: 10px;
+  padding: 22px 20px 18px;
+  border-bottom: 1px solid var(--sky-100);
+}
+.sidebar-logo-icon {
+  width: 36px; height: 36px;
+  background: linear-gradient(135deg, var(--sky-500), var(--sky-700));
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  animation: glow 3s ease infinite;
+}
+
+/* Login logo icon */
+.login-logo-icon {
+  width: 44px; height: 44px;
+  background: linear-gradient(135deg, var(--sky-500), var(--sky-700));
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+  animation: glow 3s ease infinite;
+}
+
+/* Jira status pill in sidebar */
+.jira-status {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; font-weight: 600;
+  padding: 6px 10px; border-radius: 8px;
+  margin-bottom: 10px;
+}
+.jira-status.ok    { background: #dcfce7; color: #15803d; }
+.jira-status.error { background: #fef2f2; color: #b91c1c; }
+
+/* Sign-out button */
+.btn-logout {
+  width: 100%; margin-top: 8px;
+  padding: 8px;
+  background: transparent;
+  border: 1.5px solid var(--sky-200);
+  border-radius: 8px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px; font-weight: 600; color: var(--gray-500);
+  cursor: pointer;
+  transition: all .15s;
+}
+.btn-logout:hover { background: var(--sky-50); color: var(--sky-700); border-color: var(--sky-300); }
+
+/* Secondary button */
+.btn-secondary {
+  padding: 8px 14px;
+  background: var(--sky-50);
+  border: 1.5px solid var(--sky-200);
+  border-radius: 8px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px; font-weight: 600; color: var(--sky-700);
+  cursor: pointer;
+  transition: all .15s;
+}
+.btn-secondary:hover { background: var(--sky-100); border-color: var(--sky-400); }
+
+/* Icon btn as button element */
+button.icon-btn {
+  border: 1.5px solid var(--sky-200);
+  font-family: inherit;
+  background: var(--sky-50);
+}
+
+/* AI category pill on ticket rows */
+.ai-cat-pill {
+  display: inline-flex; align-items: center;
+  padding: 2px 8px; border-radius: 10px;
+  font-size: 10px; font-weight: 700;
+  background: linear-gradient(135deg, var(--sky-100), #e0f2fe);
+  color: var(--sky-700);
+  border: 1px solid var(--sky-300);
+}
+
+/* AI category chip in ticket-meta row */
+.ai-cat-chip {
+  padding: 1px 7px; border-radius: 8px;
+  font-size: 10px; font-weight: 700;
+  background: var(--sky-100); color: var(--sky-700);
+  border: 1px solid var(--sky-200);
+}
+
+/* Ticket AI summary preview (small line below title) */
+.ticket-ai-preview {
+  font-size: 11px; color: var(--sky-600);
+  margin: 2px 0 3px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-style: italic;
+}
+
+/* Error banner */
+.error-banner {
+  background: #fef2f2; border: 1.5px solid #fecaca;
+  border-radius: var(--radius);
+  padding: 12px 18px;
+  font-size: 13px; color: #b91c1c;
+  margin-bottom: 20px;
+}
+.error-banner code { background: #fee2e2; padding: 1px 6px; border-radius: 4px; font-family: 'DM Mono', monospace; font-size: 12px; }
+
+/* Modal title */
+.modal-title { font-size: 17px; font-weight: 700; color: var(--gray-900); margin-top: 2px; }
+.ticket-id-code { font-size: 12px; font-family: 'DM Mono', monospace; color: var(--sky-600); font-weight: 500; }
+
+/* Description label */
+.desc-label { font-size: 11px; font-weight: 600; color: var(--gray-400); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 8px; }
+
+/* Priority row with dot */
+.priority-row { display: flex; align-items: center; gap: 6px; }
+
+/* AI loading flex row */
+.ai-loading { display: flex; align-items: center; gap: 10px; padding: 12px 0; }
+
+/* Suggested action list in modal */
+.ai-actions { margin-top: 10px; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+.ai-actions li { font-size: 12px; color: var(--gray-700); line-height: 1.5; }
+
+/* Section label */
+.section-label { font-size: 13px; font-weight: 700; color: var(--gray-700); margin-bottom: 8px; }
+
+/* Status pills – add missing ones */
+.s-inprogress { background: #fef3c7; color: #b45309; }
+.s-review     { background: #f5f3ff; color: #7c3aed; }
+
+/* Defect type badge */
+.type-defect { background: #fff7ed; color: #c2410c; }
+
+/* Small ticket-type-badge variant for release notes */
+.ticket-type-badge.small { width: 20px; height: 20px; font-size: 10px; border-radius: 4px; flex-shrink: 0; }
+
+/* Release CTA card hover */
+.release-cta { transition: box-shadow .2s, transform .2s; }
+.release-cta:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+
+/* Release Note Page animation and styles*/
+.release-page { animation: fadeIn .3s ease; }
+
+.release-layout {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+/* Sidebar */
+.release-sidebar { max-height: calc(100vh - 120px); display: flex; flex-direction: column; }
+.release-sidebar .card-body { overflow-y: auto; flex: 1; }
+
+.release-ticket-list {
+  display: flex; flex-direction: column; gap: 4px;
+  max-height: 480px; overflow-y: auto;
+}
+
+/* Individual ticket item in release sidebar with hover and selected states */
+.release-ticket-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1.5px solid transparent;
+  cursor: pointer;
+  transition: background .12s, border-color .12s;
+  font-size: 12px;
+}
+
+/* Hover and selected states for release ticket items */
+.release-ticket-item:hover { background: var(--sky-50); }
+.release-ticket-item.selected { background: var(--sky-50); border-color: var(--sky-300); }
+.release-ticket-item input[type="checkbox"] { accent-color: var(--sky-500); flex-shrink: 0; }
+
+.release-ticket-info { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
+.release-ticket-id   { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--sky-600); font-weight: 600; }
+.release-ticket-title { font-size: 11px; color: var(--gray-700); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Release notes output */
+.release-notes-output {
+  font-size: 14px; color: var(--gray-800); line-height: 1.75;
+  background: var(--sky-50);
+  border: 1.5px solid var(--sky-200);
+  border-radius: var(--radius);
+  padding: 24px;
+}
+.release-notes-output h1 { font-size: 22px; font-weight: 700; color: var(--gray-900); margin-bottom: 8px; }
+.release-notes-output h2 { font-size: 18px; font-weight: 700; color: var(--sky-700); margin: 20px 0 8px; border-bottom: 1px solid var(--sky-200); padding-bottom: 4px; }
+.release-notes-output h3 { font-size: 15px; font-weight: 700; color: var(--gray-700); margin: 14px 0 6px; }
+.release-notes-output ul { list-style: none; padding: 0; margin: 0 0 12px; display: flex; flex-direction: column; gap: 5px; }
+.release-notes-output li { padding: 6px 10px; background: white; border-radius: 6px; border-left: 3px solid var(--sky-400); font-size: 13px; }
+.release-notes-output strong { color: var(--gray-900); }
+
+/* Responsive for release layout */
+@media (max-width: 860px) {
+  .release-layout { grid-template-columns: 1fr; }
 }

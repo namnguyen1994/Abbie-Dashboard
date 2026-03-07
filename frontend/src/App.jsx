@@ -1,105 +1,113 @@
-import React, { useState, useEffect } from 'react'; // React core imports for state management and side effects
-import './App.css'; // Main stylesheet for the app, containing all the styles for components and layout
+//Need to import React and necessary hooks for state management and side effects, as well as the main CSS file for styling the dashboard application.
+import React, { useState, useEffect, useCallback } from 'react';
+import './App.css';
 
-/* Utility functions to convert ticket properties into visual badges and CSS classes. These functions help maintain a consistent look and feel across the app by mapping ticket types, priorities, and statuses to specific icons and styles. For example, typeBadge returns an emoji based on the ticket type, while priorityClass and statusClass return CSS class names that can be used to style elements accordingly. insightIcon maps AI insight types to corresponding emojis for quick visual identification. */
+// Helper functions to map ticket types, priorities, and statuses to badges and CSS classes for consistent styling across the dashboard.
 function typeBadge(type) {
-  const labels = { bug: '🐛', story: '📖', task: '✅', other: '📦' };
-  return labels[type] || '•';
+  return { bug: '🐛', defect: '⚠️', story: '📖', task: '✅', other: '📦' }[type] || '•';
 }
-function priorityClass(p) { return { Critical: 'p-critical', High: 'p-high', Medium: 'p-medium', Low: 'p-low' }[p] || ''; }
-function statusClass(s)   { return { 'Open': 's-open', 'In Progress': 's-in-progress', 'Done': 's-done' }[s] || ''; }
-function typeClass(t)     { return { bug: 'type-bug', story: 'type-story', task: 'type-task', other: 'type-other' }[t] || ''; }
-function insightIcon(t)   { return { warning: '⚠️', positive: '✅', info: 'ℹ️' }[t] || '•'; }
+function priorityClass(p) {
+  return { Critical: 'p-critical', Highest: 'p-critical', High: 'p-high', Medium: 'p-medium', Low: 'p-low' }[p] || '';
+}
+function statusClass(s) {
+  return { Open: 's-open', 'To Do': 's-open', 'In Progress': 's-inprogress', Done: 's-done', 'In Review': 's-review' }[s] || '';
+}
+function typeClass(t) {
+  return { bug: 'type-bug', defect: 'type-defect', story: 'type-story', task: 'type-task', other: 'type-other' }[t] || '';
+}
 
-/* Custom DonutChart component that takes in data and renders an SVG donut chart.*/
+// Pie chart component that takes in data and renders a donut chart using SVG, calculating the necessary stroke dash arrays and offsets to visually represent the proportions of each category.
 function DonutChart({ data, colors, size = 120, stroke = 22 }) {
-  const r = (size - stroke) / 2;
-  const cx = size / 2, cy = size / 2;
+  const r    = (size - stroke) / 2;
+  const cx   = size / 2, cy = size / 2;
   const circ = 2 * Math.PI * r;
-  const total = data.reduce((s, d) => s + d.value, 0);
+  const total = data.reduce((s, d) => s + (d.value || 0), 0) || 1;
   let acc = 0;
+
   const segments = data.map((d, i) => {
-    const pct = d.value / total;
-    const dash = pct * circ;
-    const gap = circ - dash;
+    const pct    = d.value / total;
+    const dash   = pct * circ;
+    const gap    = circ - dash;
     const offset = circ - (acc / total) * circ;
     acc += d.value;
     return { ...d, dash, gap, offset, color: colors[i % colors.length] };
   });
 
-// The SVG consists of multiple <circle> elements, each representing a segment of the donut chart. The stroke-dasharray and stroke-dashoffset properties are used to create the visual effect of the segments.
   return (
-    <svg width={size} height={size} className="donut-svg" style={{ transform: 'rotate(-90deg)' }}>
+    <svg width={size} height={size} style={{ transform: 'rotate(-90deg)', display: 'block' }}>
       {segments.map((seg, i) => (
         <circle key={i} cx={cx} cy={cy} r={r}
           fill="none" stroke={seg.color} strokeWidth={stroke}
           strokeDasharray={`${seg.dash} ${seg.gap}`}
           strokeDashoffset={seg.offset}
-          style={{ transition: 'stroke-dasharray .6s ease' }} />
+          style={{ transition: 'stroke-dasharray .5s ease' }} />
       ))}
     </svg>
   );
 }
 
-/* LoginPage component that renders the login form and handles user authentication. It also includes a quick-login panel with demo accounts for easy access during development or testing. The component manages its own state for form inputs, loading status, error messages, and the list of demo users. It communicates with the backend API to perform login and fetch demo users. */
+// Login page component that manages user input for email and password, handles form submission to authenticate with the backend, and displays demo user accounts that can be auto-filled for quick access during testing or demos.
 function LoginPage({ onLogin }) {
   const [email, setEmail] = useState('');
-  const [pass, setPass] = useState('');
+  const [pass,  setPass]  = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [demoUsers, setDemoUsers] = useState([]);
 
-  // Load demo users from backend for the quick-login panel
+  // On component mount, fetch a list of demo users from the backend API. If the fetch fails (e.g., backend not running), fall back to a hardcoded list of demo users with predefined emails, names, avatars, and roles for demonstration purposes.
   useEffect(() => {
-    fetch('/api/auth/users') // Calls the backend endpoint to retrieve a list of demo users. This allows you to easily log in with predefined accounts without needing to create them manually.
-      .then(res => res.json()) // Parses the JSON response from the backend, which should contain a list of demo users.
-      .then(data => setDemoUsers(data.users || [])) // Updates the demoUsers state with the fetched users, or an empty array if the response doesn't contain a users field.
-      .catch(() => {
-        // Fallback demo users if endpoint not available
-        setDemoUsers([
-          { id: 'u1', email: 'nam.nguyen@datamir.com', password: 'password123', name: 'Nam Nguyen', avatar: 'NN', role: 'Senior Developer' },
-          { id: 'u2', email: 'andrea.cossio@datamir.com',   password: 'password123', name: 'Andrea Cossio',   avatar: 'AC', role: 'Product Manager' },
-          { id: 'u3', email: 'josh.moyer@datamir.com',  password: 'password123', name: 'Josh Moyer',  avatar: 'JM', role: 'QA Engineer' },
-        ]);
-      });
+    fetch('/api/auth/users')
+      .then(r => r.json())
+      .then(d => setDemoUsers(d.users || []))
+      .catch(() => setDemoUsers([
+        { id: 'u1', email: 'nam.nguyen@datamir.com',    name: 'Nam Nguyen',    avatar: 'NN', role: 'Senior Developer' },
+        { id: 'u2', email: 'andrea.cossio@datamir.com', name: 'Andrea Cossio', avatar: 'AC', role: 'Product Manager'  },
+        { id: 'u3', email: 'josh.moyer@datamir.com',    name: 'Josh Moyer',    avatar: 'JM', role: 'QA Engineer'      },
+      ]));
   }, []);
 
-  /* The submit function is responsible for handling the login process when the user submits the form. It sends a POST request to the backend API with the email and password entered by the user. If the login is successful, it calls the onLogin callback with the user data returned from the backend. If there is an error during login, it updates the error state to display an appropriate message to the user. The function also manages the loading state to provide feedback while the login request is being processed. */
+/*
+Handle form submission for user login. 
+It sends a POST request to the backend API with the entered email and password. 
+If the response is successful and contains user data, it calls the onLogin callback with the user information. 
+If there's an error (e.g., invalid credentials or server issues), it sets an appropriate error message to be displayed on the login page.
+*/
   const submit = async (e) => {
-    e && e.preventDefault(); // Prevents the default form submission behavior, which would cause a page reload. This allows the login process to be handled entirely through JavaScript and provides a smoother user experience.
-    setError(''); // Clears any existing error messages before attempting a new login. This ensures that the user sees only relevant error messages related to their current login attempt.
+    e?.preventDefault();
+    setError('');
     setLoading(true);
-    try { // Sends a POST request to the backend API at the /api/auth/login endpoint with the email and password as JSON in the request body. The backend will validate the credentials and respond with user data if the login is successful, or an error message if it fails.
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
+    try {
+      const res  = await fetch('/api/auth/login', {
+        method : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password: pass }),
+        body   : JSON.stringify({ email, password: pass }),
       });
-      const data = await res.json(); // Parses the JSON response from the backend. If the login is successful, the response should contain a user object. If the login fails, it may contain an error message.
-      if (res.ok && data.user) {
-        onLogin(data.user);
-      } else {
-        setError(data.error || 'Invalid credentials. Try the demo accounts below.');
-      }
-    } catch (err) { // Catches any network errors or unexpected issues during the fetch request and updates the error state with a generic message. This helps inform the user that there was a problem connecting to the server, which could be due to the backend not running or other network issues.
+      const data = await res.json();
+      if (res.ok && data.user) { onLogin(data.user); }
+      else { setError(data.error || 'Invalid credentials. Try a demo account.'); }
+    } catch {
       setError('Cannot reach the server. Make sure your backend is running.');
     }
     setLoading(false);
   };
 
-  // The fillDemo function is a helper function that populates the login form with the email and password of a selected demo user. This allows users to quickly log in using predefined demo accounts without having to manually enter the credentials. When a demo account is clicked, this function is called with the corresponding user object, and it updates the email and password state variables accordingly.
-  const fillDemo = (u) => { setEmail(u.email); setPass(u.password || 'password123'); };
+  // When a demo user is clicked, this function fills the email and password fields with the demo user's credentials, allowing for quick login without manual typing.
+  const fillDemo = (u) => { setEmail(u.email); setPass('password123'); };
 
-  // The component's return statement renders the login page UI, including the login form, error messages, and the quick-login panel with demo accounts. The form includes input fields for email and password, and a submit button that triggers the login process. If there are any errors during login, they are displayed above the form. Below the form, there is a section for demo accounts that allows users to quickly fill in the login form with predefined credentials by clicking on a demo account.
+/* 
+The component renders a styled login form with fields for email and password, a submit button, and a section displaying demo user accounts. 
+It also shows error messages when login fails and provides visual feedback during the loading state.
+*/
   return (
     <div className="login-page">
-      <div className="login-card">
+      <div className="login-card fade-in">
         <div className="login-logo">
-          <img src="/dataminr_logo.webp" alt="Datamir" className="sidebar-logo-icon" />
+          <img src="/dataminr_logo.webp" alt="Datamir" className="login-logo-img" />
           <span className="login-logo-text">Datamir<span>Dashboard</span></span>
         </div>
+
         <h1 className="login-h">Welcome back</h1>
-        <p className="login-subtitle">Sign in with your Jira account to continue</p>
+        <p className="login-subtitle">Sign in to access your Jira + AI dashboard</p>
 
         {error && <div className="error-msg">⚠️ {error}</div>}
 
@@ -115,14 +123,14 @@ function LoginPage({ onLogin }) {
             value={pass} onChange={e => setPass(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && submit()} />
         </div>
+
         <button className="btn-primary" onClick={submit} disabled={loading}>
-          {loading ? '🔄 Signing in…' : '→ Sign in with Jira'}
+          {loading ? '🔄 Signing in…' : '→ Sign in'}
         </button>
 
         <div className="login-divider"><span>demo accounts</span></div>
 
         <div className="demo-accounts">
-          <h4>🎮 Quick Login</h4>
           {demoUsers.map(u => (
             <div key={u.id} className="demo-account" onClick={() => fillDemo(u)}>
               <div className="demo-avatar">{u.avatar}</div>
@@ -139,47 +147,52 @@ function LoginPage({ onLogin }) {
   );
 }
 
-/* TicketModal component that displays detailed information about a selected ticket, including its properties, description, and AI-generated insights. It fetches additional AI analysis for the specific ticket from the backend when the modal is opened. The modal can be closed by clicking outside of it or on the close button. The component manages its own state for the AI data and loading status while fetching the analysis. */
+// Modal component that displays detailed information about a selected ticket, including its properties, description, and AI-generated analysis.
 function TicketModal({ ticket, onClose }) {
-  const [aiData, setAiData] = useState(null);
-  const [loadingAI, setLoadingAI] = useState(true);
+  const [aiData,     setAiData]     = useState(null);
+  const [loadingAI,  setLoadingAI]  = useState(true);
 
-  /* The useEffect hook is used to fetch AI analysis data for the specific ticket when the TicketModal component is mounted or when the ticket prop changes. It sends a GET request to the backend API at the /api/ai/ticket/:id endpoint, where :id is the ID of the selected ticket. While the data is being fetched, it sets the loadingAI state to true to indicate that the analysis is in progress. Once the data is successfully retrieved, it updates the aiData state with the received information and sets loadingAI to false. If there is an error during the fetch process, it catches the error and simply sets loadingAI to false without updating aiData, which will result in displaying an "AI analysis unavailable" message in the UI. */
+  // When the component mounts or when the ticket ID changes, this effect triggers a fetch request to the backend API to retrieve AI-generated analysis for the specific ticket.
   useEffect(() => {
     setLoadingAI(true);
+    setAiData(null);
     fetch(`/api/ai/ticket/${ticket.id}`)
-      .then(res => res.json())
-      .then(data => { setAiData(data); setLoadingAI(false); })
+      .then(r => r.json())
+      .then(d => { setAiData(d); setLoadingAI(false); })
       .catch(() => setLoadingAI(false));
-  }, [ticket]);
+  }, [ticket.id]);
 
-  /* The component's return statement renders the modal overlay and the modal content. The overlay allows users to click outside the modal to close it, while the modal itself displays detailed information about the selected ticket, including its type, ID, status, title, properties (such as priority, assignee, reporter, etc.), description, and AI-generated insights. The AI insights section shows a loading spinner while the analysis is being fetched and displays the summary and meta information once available. If the AI analysis is unavailable, it shows an appropriate message. The modal also includes a close button for users to easily dismiss it. */
+  // The component renders a modal overlay that displays the ticket's title, type, status, priority, assignee, reporter, sprint, story points, creation and update dates, as well as the description and AI analysis.
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="modal">
+      <div className="modal fade-in">
         <div className="modal-header">
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
               <span className={`ticket-type-badge ${typeClass(ticket.type)}`}>{typeBadge(ticket.type)}</span>
-              <code style={{ fontSize: '12px', fontFamily: "'DM Mono',monospace", color: 'var(--sky-600)', fontWeight: '500' }}>{ticket.id}</code>
+              <code className="ticket-id-code">{ticket.id}</code>
               <span className={`status-pill ${statusClass(ticket.status)}`}>{ticket.status}</span>
+              {ticket.aiCategory && (
+                <span className="ai-cat-pill">{ticket.aiCategory}</span>
+              )}
             </div>
-            <h2 style={{ fontSize: '17px', fontWeight: '700', color: 'var(--gray-900)' }}>{ticket.title}</h2>
+            <h2 className="modal-title">{ticket.title}</h2>
           </div>
           <button className="modal-close" onClick={onClose}>✕</button>
         </div>
 
         <div className="modal-body">
+          {/* Properties grid */}
           <div className="detail-grid">
             {[
-              ['Priority', <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><span className={`priority-dot ${priorityClass(ticket.priority)}`}></span>{ticket.priority}</span>],
-              ['Type', ticket.type.charAt(0).toUpperCase() + ticket.type.slice(1)],
+              ['Priority', <span className="priority-row"><span className={`priority-dot ${priorityClass(ticket.priority)}`}></span>{ticket.priority}</span>],
+              ['Type',     (ticket.aiCategory || ticket.type)],
               ['Assignee', ticket.assignee],
               ['Reporter', ticket.reporter],
-              ['Sprint', ticket.sprint],
-              ['Story Points', `${ticket.storyPoints} pts`],
-              ['Created', ticket.created],
-              ['Updated', ticket.updated],
+              ['Sprint',   ticket.sprint],
+              ['Points',   `${ticket.storyPoints} pts`],
+              ['Created',  ticket.created],
+              ['Updated',  ticket.updated],
             ].map(([k, v]) => (
               <div key={k} className="detail-item">
                 <div className="detail-key">{k}</div>
@@ -188,15 +201,26 @@ function TicketModal({ ticket, onClose }) {
             ))}
           </div>
 
+          {/* Gemini AI Summary styles */}
+          {ticket.aiSummary && (
+            <div className="description-box" style={{ marginBottom: '12px' }}>
+              <div className="desc-label">✨ AI Summary</div>
+              <p style={{ fontSize: '13px', color: 'var(--gray-700)', lineHeight: '1.7' }}>{ticket.aiSummary}</p>
+            </div>
+          )}
+
           <div className="description-box">
-            <div style={{ fontSize: '11px', fontWeight: '600', color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '8px' }}>Description</div>
-            {ticket.description}
+            <div className="desc-label">Description</div>
+            <p style={{ fontSize: '13px', color: 'var(--gray-700)', lineHeight: '1.7' }}>
+              {ticket.description || 'No description provided.'}
+            </p>
           </div>
 
+          {/* Gemini AI Analysis */}
           <div className="ai-ticket-box">
-            <div className="ai-badge">✨ Gemini AI Analysis</div>
+            <div className="ai-badge">✨ Gemini Deep Analysis</div>
             {loadingAI ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 0', color: 'var(--sky-600)', fontSize: '13px' }}>
+              <div className="ai-loading">
                 <span className="loading-spinner"></span> Analyzing with Gemini…
               </div>
             ) : aiData ? (
@@ -206,6 +230,11 @@ function TicketModal({ ticket, onClose }) {
                   <span className="ai-meta-tag">⚡ Risk: {aiData.riskLevel}</span>
                   <span className="ai-meta-tag">🕐 Est. {aiData.estimatedResolution}</span>
                 </div>
+                {aiData.suggestedActions?.length > 0 && (
+                  <ul className="ai-actions">
+                    {aiData.suggestedActions.map((a, i) => <li key={i}>{a}</li>)}
+                  </ul>
+                )}
               </>
             ) : (
               <p style={{ fontSize: '13px', color: 'var(--gray-400)' }}>AI analysis unavailable.</p>
@@ -217,138 +246,328 @@ function TicketModal({ ticket, onClose }) {
   );
 }
 
-// ─── DASHBOARD ────────────────────────────────────────────────────────────────
-function Dashboard({ user, onLogout }) {
-  const [activeTab, setActiveTab] = useState('all');
-  const [selectedTicket, setSelectedTicket] = useState(null);
-  const [search, setSearch] = useState('');
-  const [activePage, setActivePage] = useState('dashboard');
+/*
+ AI-powered release notes page that allows users to select which tickets to include, configure the release version and an optional knowledge base URL, and generates professional release notes in markdown format using Gemini AI. 
+ The generated notes can be copied to the clipboard and are rendered with basic markdown formatting for easy reading.
+*/
+function ReleaseNotesPage({ tickets }) {
+  const [version,      setVersion]      = useState('v1.0');
+  const [kbUrl,        setKbUrl]        = useState('');
+  const [notes,        setNotes]        = useState('');
+  const [loading,      setLoading]      = useState(false);
+  const [selectedIds,  setSelectedIds]  = useState([]);
+  const [copied,       setCopied]       = useState(false);
 
-  // ✅ All data now comes from your backend
-  const [tickets, setTickets] = useState([]);
-  const [stats, setStats] = useState({ total: 0, open: 0, inProgress: 0, done: 0, critical: 0 });
-  const [aiAnalysis, setAiAnalysis] = useState(null);
-  const [loadingTickets, setLoadingTickets] = useState(true);
-
-  // Fetch tickets from GET /api/tickets
+  // Pre-select all tickets
   useEffect(() => {
-    setLoadingTickets(true);
-    fetch('/api/tickets')
-      .then(res => res.json())
-      .then(data => { setTickets(data.tickets || []); setLoadingTickets(false); })
-      .catch(() => setLoadingTickets(false));
-  }, []);
+    setSelectedIds(tickets.map(t => t.id));
+  }, [tickets]);
 
-  // Fetch stats from GET /api/stats
-  useEffect(() => {
-    fetch('/api/stats')
-      .then(res => res.json())
-      .then(data => setStats(data))
-      .catch(err => console.error('Stats fetch failed:', err));
-  }, []);
-
-  // Fetch AI analysis from GET /api/ai/analysis
-  useEffect(() => {
-    fetch('/api/ai/analysis')
-      .then(res => res.json())
-      .then(data => setAiAnalysis(data))
-      .catch(err => console.error('AI analysis fetch failed:', err));
-  }, []);
-
-  const filtered = tickets.filter(t => {
-    const matchType = activeTab === 'all' || t.type === activeTab;
-    const matchSearch = !search || t.title.toLowerCase().includes(search.toLowerCase()) || t.id.toLowerCase().includes(search.toLowerCase());
-    return matchType && matchSearch;
-  });
-
-  const catCounts = {
-    bug:   tickets.filter(t => t.type === 'bug').length,
-    story: tickets.filter(t => t.type === 'story').length,
-    task:  tickets.filter(t => t.type === 'task').length,
-    other: tickets.filter(t => t.type === 'other').length,
+/*
+ Toggle the selection of a ticket by its ID. If the ticket is already selected, it will be deselected; 
+ If it's not selected, it will be added to the selection. This allows users to easily choose which tickets to include in the generated release notes.
+*/
+  const toggleTicket = (id) => {
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
   };
 
-  const navItems = [
-    { id: 'dashboard', icon: '🏠', label: 'Dashboard' },
-    { id: 'tickets',   icon: '🎫', label: 'All Tickets', badge: stats.total },
-    { id: 'bugs',      icon: '🐛', label: 'Bugs',        badge: stats.open, badgeColor: 'red' },
-    { id: 'stories',   icon: '📖', label: 'Stories' },
-    { id: 'tasks',     icon: '✅', label: 'Tasks' },
-    { id: 'other',     icon: '📦', label: 'Other' },
-  ];
+// Generate release notes by sending the selected tickets, version, and knowledge base URL to the backend API.
+  const generateNotes = async () => {
+    const selected = tickets.filter(t => selectedIds.includes(t.id));
+    if (!selected.length) { alert('Please select at least one ticket.'); return; }
 
-  const handleNavClick = (id) => {
-    setActivePage(id);
-    if (['bugs', 'stories', 'tasks', 'other'].includes(id)) {
-      setActiveTab(id === 'bugs' ? 'bug' : id === 'stories' ? 'story' : id === 'other' ? 'other' : 'task');
-    } else {
-      setActiveTab('all');
+    setLoading(true);
+    setNotes('');
+    try {
+      const res  = await fetch('/api/ai/release-notes', {
+        method : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body   : JSON.stringify({ tickets: selected, version, kbUrl }),
+      });
+      const data = await res.json();
+      setNotes(data.releaseNotes || data.error || 'No response from AI.');
+    } catch {
+      setNotes('❌ Failed to generate release notes. Check your backend.');
     }
+    setLoading(false);
   };
 
+  // Copy the generated release notes in markdown format to the clipboard and provide visual feedback that the copy action was successful.
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(notes);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  // Simple markdown → HTML renderer (headings, bullets, bold)
+  const renderMarkdown = (md) => {
+    if (!md) return '';
+    return md
+      .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+      .replace(/^## (.+)$/gm,  '<h2>$1</h2>')
+      .replace(/^# (.+)$/gm,   '<h1>$1</h1>')
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/^- (.+)$/gm,   '<li>$1</li>')
+      .replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>')
+      .replace(/\n{2,}/g, '<br/><br/>');
+  };
+
+  // The component renders a two-column layout where the left side allows users to select which tickets to include in the release notes, and the right side provides configuration options and displays the generated release notes.
   return (
-    <div className="app">
-      {/* ── SIDEBAR ── */}
-      <aside className="sidebar">
-        <div className="sidebar-header">
-          <div className="sidebar-logo">
-            <div className="sidebar-logo-icon">J</div>
-            <span className="sidebar-logo-text">Datamir<span>Dashboard</span></span>
+    <div className="release-page fade-in">
+      <div className="release-layout">
+
+        {/* LEFT: ticket selector */}
+        <div className="release-sidebar card">
+          <div className="card-header">
+            <span className="card-title">🎫 Select Tickets</span>
+            <span style={{ fontSize: '12px', color: 'var(--gray-400)' }}>{selectedIds.length}/{tickets.length}</span>
+          </div>
+          <div className="card-body">
+            <button className="btn-secondary" style={{ marginBottom: '10px', width: '100%' }}
+              onClick={() => setSelectedIds(selectedIds.length === tickets.length ? [] : tickets.map(t => t.id))}>
+              {selectedIds.length === tickets.length ? 'Deselect All' : 'Select All'}
+            </button>
+            <div className="release-ticket-list">
+              {tickets.map(t => (
+                <label key={t.id} className={`release-ticket-item ${selectedIds.includes(t.id) ? 'selected' : ''}`}>
+                  <input type="checkbox" checked={selectedIds.includes(t.id)} onChange={() => toggleTicket(t.id)} />
+                  <span className={`ticket-type-badge small ${typeClass(t.type)}`}>{typeBadge(t.type)}</span>
+                  <div className="release-ticket-info">
+                    <span className="release-ticket-id">{t.id}</span>
+                    <span className="release-ticket-title">{t.title}</span>
+                  </div>
+                </label>
+              ))}
+            </div>
           </div>
         </div>
 
+        {/* RIGHT: config + output */}
+        <div className="release-main">
+          <div className="card" style={{ marginBottom: '16px' }}>
+            <div className="card-header">
+              <span className="card-title">⚙️ Configuration</span>
+            </div>
+            <div className="card-body">
+              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                <div className="form-group" style={{ flex: '1', minWidth: '160px' }}>
+                  <label className="form-label">Version / Release Name</label>
+                  <input className="form-input" value={version} onChange={e => setVersion(e.target.value)} placeholder="e.g. v2.1.0" />
+                </div>
+                <div className="form-group" style={{ flex: '2', minWidth: '260px' }}>
+                  <label className="form-label">Company Knowledge Base URL (optional)</label>
+                  <input className="form-input" value={kbUrl} onChange={e => setKbUrl(e.target.value)}
+                    placeholder="https://your-company.com/knowledge-base" />
+                </div>
+              </div>
+              <button className="btn-primary" onClick={generateNotes} disabled={loading} style={{ marginTop: '8px' }}>
+                {loading ? '🔄 Generating…' : '✨ Generate Release Notes with Gemini'}
+              </button>
+            </div>
+          </div>
+
+          {/* Output */}
+          {(loading || notes) && (
+            <div className="card">
+              <div className="card-header">
+                <span className="card-title">📋 Release Notes</span>
+                {notes && (
+                  <button className="btn-secondary" onClick={copyToClipboard}>
+                    {copied ? '✅ Copied!' : '📋 Copy Markdown'}
+                  </button>
+                )}
+              </div>
+              <div className="card-body">
+                {loading ? (
+                  <div className="ai-loading" style={{ justifyContent: 'center', padding: '40px' }}>
+                    <span className="loading-spinner"></span>
+                    <span style={{ color: 'var(--sky-600)', marginLeft: '10px' }}>Gemini is writing your release notes…</span>
+                  </div>
+                ) : (
+                  <div className="release-notes-output"
+                    dangerouslySetInnerHTML={{ __html: renderMarkdown(notes) }} />
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/*
+Dashboard component that serves as the main interface for users after logging in, displaying an overview of tickets, statistics, and providing navigation to different sections of the dashboard. 
+It also handles fetching tickets from the backend, sending them for AI analysis, and managing the state of the application.
+*/
+function Dashboard({ user, onLogout }) {
+  const [activePage,     setActivePage]     = useState('dashboard');
+  const [activeTab,      setActiveTab]      = useState('all');
+  const [search,         setSearch]         = useState('');
+  const [selectedTicket, setSelectedTicket] = useState(null);
+
+  const [tickets,        setTickets]        = useState([]);
+  const [stats,          setStats]          = useState({ total: 0, open: 0, inProgress: 0, done: 0, critical: 0, byType: {} });
+  const [aiAnalysis,     setAiAnalysis]     = useState(null);
+  const [loadingTickets, setLoadingTickets] = useState(true);
+  const [loadingAI,      setLoadingAI]      = useState(false);
+  const [jiraError,      setJiraError]      = useState('');
+
+/*
+First step: load tickets from the backend API and set the loading state while the fetch is in progress. 
+If the fetch is successful, it updates the tickets state with the retrieved data. 
+If there's an error (e.g., Jira offline), it sets an error message to be displayed in the UI.
+*/
+  const loadTickets = useCallback(async () => {
+    setLoadingTickets(true);
+    setJiraError('');
+    try {
+      const res  = await fetch('/api/tickets');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Jira fetch failed');
+
+      const raw = data.tickets || [];
+      setTickets(raw);           // show immediately while AI runs
+
+      //Second step: send raw tickets to the backend for AI categorization and enrichment, then update the tickets state with the categorized data once it is received. This allows the dashboard to display AI-generated categories and insights alongside the original ticket information.
+      if (raw.length > 0) {
+        const catRes  = await fetch('/api/ai/categorize', {
+          method : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body   : JSON.stringify({ tickets: raw }),
+        });
+        const catData = await catRes.json();
+        if (catData.tickets?.length) setTickets(catData.tickets);
+      }
+    } catch (err) {
+      setJiraError(err.message);
+    }
+    setLoadingTickets(false);
+  }, []);
+
+  //Third step: fetch overall statistics about the tickets from the backend API on component mount, and update the stats state with the retrieved data to be displayed in the dashboard's overview section.
+  useEffect(() => {
+    fetch('/api/stats')
+      .then(r => r.json())
+      .then(d => setStats(d))
+      .catch(err => console.error('Stats error:', err));
+  }, []);
+
+  //Fourth step: trigger the initial load of tickets when the component mounts, ensuring that the dashboard displays the most up-to-date information from Jira as soon as the user logs in.
+  useEffect(() => { loadTickets(); }, [loadTickets]);
+
+  //Fifth step: whenever the tickets state changes (e.g., after fetching from Jira or receiving AI categorization), send the updated list of tickets to the backend API for further AI analysis, and update the aiAnalysis state with the results to provide insights and recommendations based on the current set of tickets.
+  useEffect(() => {
+    if (!tickets.length) return;
+    setLoadingAI(true);
+    fetch('/api/ai/analysis', {
+      method : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body   : JSON.stringify({ tickets }),
+    })
+      .then(r => r.json())
+      .then(d => { setAiAnalysis(d); setLoadingAI(false); })
+      .catch(() => setLoadingAI(false));
+  }, [tickets.length]); // only re-run when count changes
+
+  //Filtering the tickets based on the active tab (e.g., all, bugs, stories) and the search query entered by the user.
+  const filtered = tickets.filter(t => {
+    const matchTab = activeTab === 'all' || t.type === activeTab;
+    const q        = search.toLowerCase();
+    const matchSrch = !search
+      || t.title.toLowerCase().includes(q)
+      || t.id.toLowerCase().includes(q);
+    return matchTab && matchSrch;
+  });
+
+  //Calculating the count of tickets for each category (bug, story, task, other) to be displayed as badges in the navigation menu, providing users with a quick overview of the distribution of different types of tickets in their Jira project.
+  const catCounts = {
+    bug   : tickets.filter(t => t.type === 'bug'    || t.type === 'defect').length,
+    story : tickets.filter(t => t.type === 'story').length,
+    task  : tickets.filter(t => t.type === 'task').length,
+    other : tickets.filter(t => t.type === 'other').length,
+  };
+
+  //Defining the navigation items for the sidebar, including their icons, labels, and badges (e.g., total ticket count, bug count) to provide users with easy access to different sections of the dashboard and a quick overview of their Jira tickets.
+  const navItems = [
+    { id: 'dashboard',     icon: '🏠', label: 'Dashboard' },
+    { id: 'tickets',       icon: '🎫', label: 'All Tickets', badge: stats.total },
+    { id: 'bugs',          icon: '🐛', label: 'Bugs',        badge: catCounts.bug,   badgeColor: 'red' },
+    { id: 'stories',       icon: '📖', label: 'Stories',     badge: catCounts.story  },
+    { id: 'tasks',         icon: '✅', label: 'Tasks',       badge: catCounts.task   },
+    { id: 'other',         icon: '📦', label: 'Other' },
+    { id: 'release-notes', icon: '📋', label: 'Release Notes' },
+  ];
+
+  const handleNav = (id) => {
+    setActivePage(id);
+    const map = { bugs: 'bug', stories: 'story', tasks: 'task', other: 'other' };
+    setActiveTab(map[id] || 'all');
+  };
+
+  // Mapping of active page IDs to their corresponding titles, which are displayed in the top bar of the dashboard to indicate the current section the user is viewing.
+  const pageTitle = {
+    dashboard    : '📊 Dashboard',
+    tickets      : '🎫 All Tickets',
+    bugs         : '🐛 Bug Tracker',
+    stories      : '📖 User Stories',
+    tasks        : '✅ Tasks',
+    other        : '📦 Other Tickets',
+    'release-notes': '📋 Release Notes',
+  }[activePage] || '📊 Dashboard';
+
+  return (
+    <div className="app-shell">
+      {/* ── SIDEBAR ── */}
+      <aside className="sidebar">
+        <div className="sidebar-logo">
+          <img src="/dataminr_logo.webp" alt="Datamir" className="login-logo-img" />
+          <span className="sidebar-logo-text">Datamir</span>
+        </div>
+
         <nav className="sidebar-nav">
-          <div className="sidebar-section">Main</div>
           {navItems.map(item => (
             <div key={item.id}
               className={`nav-item ${activePage === item.id ? 'active' : ''}`}
-              onClick={() => handleNavClick(item.id)}>
+              onClick={() => handleNav(item.id)}>
               <span className="nav-icon">{item.icon}</span>
-              {item.label}
-              {item.badge != null && <span className={`nav-badge ${item.badgeColor || ''}`}>{item.badge}</span>}
+              <span className="nav-label">{item.label}</span>
+              {item.badge > 0 && (
+                <span className={`nav-badge ${item.badgeColor === 'red' ? 'red' : ''}`}>{item.badge}</span>
+              )}
             </div>
           ))}
-
-          <div className="sidebar-section" style={{ marginTop: '12px' }}>AI Features</div>
-          <div className={`nav-item ${activePage === 'ai' ? 'active' : ''}`} onClick={() => setActivePage('ai')}>
-            <span className="nav-icon">✨</span> AI Insights
-          </div>
-          <div className={`nav-item ${activePage === 'analytics' ? 'active' : ''}`} onClick={() => setActivePage('analytics')}>
-            <span className="nav-icon">📊</span> Analytics
-          </div>
-
-          <div className="sidebar-section" style={{ marginTop: '12px' }}>Settings</div>
-          <div className="nav-item"><span className="nav-icon">⚙️</span> Settings</div>
-          <div className="nav-item"><span className="nav-icon">🔌</span> Integrations</div>
         </nav>
 
+        {/* Jira status */}
         <div className="sidebar-footer">
-          <div className="user-card" onClick={onLogout} title="Click to log out">
-            <div className="user-avatar">{user.avatar}</div>
+          <div className={`jira-status ${jiraError ? 'error' : 'ok'}`}>
+            {jiraError
+              ? <><span>🔴</span><span>Jira offline</span></>
+              : <><span>🟢</span><span>Jira connected</span></>
+            }
+          </div>
+          <div className="user-card">
+            <div className="user-avatar">{user.avatar || user.name?.[0]}</div>
             <div className="user-info">
               <div className="user-name">{user.name}</div>
               <div className="user-role">{user.role}</div>
             </div>
-            <span style={{ fontSize: '14px', color: 'var(--gray-400)' }}>→</span>
           </div>
+          <button className="btn-logout" onClick={onLogout}>Sign out</button>
         </div>
       </aside>
 
-      {/* ── MAIN ── */}
+      {/* Main content status and style */}
       <main className="main">
-        {/* Topbar */}
+        {/* Top bar */}
         <div className="topbar">
           <div>
-            <div className="topbar-title">
-              {activePage === 'dashboard' ? '📊 Dashboard' :
-               activePage === 'ai'        ? '✨ AI Insights' :
-               activePage === 'analytics' ? '📈 Analytics' :
-               activePage === 'bugs'      ? '🐛 Bug Tracker' :
-               activePage === 'stories'   ? '📖 User Stories' :
-               activePage === 'tasks'     ? '✅ Tasks' :
-               activePage === 'other'     ? '📦 Other Tickets' : '🎫 All Tickets'}
-            </div>
-            <div className="topbar-sub">Last synced with Jira · {new Date().toLocaleDateString()}</div>
+            <div className="topbar-title">{pageTitle}</div>
+            <div className="topbar-sub">Live Jira sync · {new Date().toLocaleDateString()}</div>
           </div>
           <div className="topbar-right">
             <div className="search-bar">
@@ -356,249 +575,291 @@ function Dashboard({ user, onLogout }) {
               <input placeholder="Search tickets, IDs…"
                 value={search} onChange={e => setSearch(e.target.value)} />
             </div>
-            <div className="icon-btn" title="Refresh" onClick={() => window.location.reload()}>↻</div>
-            <div className="icon-btn" title="Notifications">🔔</div>
+            <button className="icon-btn" title="Refresh" onClick={loadTickets}>↻</button>
+            <div className="icon-btn">🔔</div>
           </div>
         </div>
 
-        {/* Content */}
         <div className="content">
 
-          {/* ── STATS ROW ── */}
-          <div className="stats-grid">
-            {[
-              { label: 'Total Tickets', value: stats.total,      icon: '🎫', change: '+2 this week',    dir: 'up' },
-              { label: 'Open',          value: stats.open,       icon: '📂', change: '5 need triage',   dir: 'down' },
-              { label: 'In Progress',   value: stats.inProgress, icon: '⚡', change: 'On track',        dir: 'up' },
-              { label: 'Critical',      value: stats.critical,   icon: '🚨', change: '↑ from 2 last wk', dir: 'down' },
-            ].map((s, i) => (
-              <div key={i} className="stat-card" style={{ animationDelay: `${i * 0.08}s` }}>
-                <div className="stat-label">{s.label}</div>
-                <div className="stat-value">{s.value}</div>
-                <div className={`stat-change ${s.dir}`}>{s.change}</div>
-                <div className="stat-icon">{s.icon}</div>
-              </div>
-            ))}
-          </div>
-
-          {/* ── MAIN GRID ── */}
-          <div className="dashboard-grid">
-            <div className="dashboard-col">
-
-              {/* Ticket List Card */}
-              <div className="card">
-                <div className="card-header">
-                  <span className="card-title"><span className="card-title-icon">🎫</span> Tickets</span>
-                  <span style={{ fontSize: '12px', color: 'var(--gray-400)' }}>
-                    {filtered.length} of {tickets.length} shown
-                  </span>
-                </div>
-
-                <div className="category-tabs">
-                  {[
-                    ['all',   'All',     stats.total],
-                    ['bug',   'Bugs',    catCounts.bug],
-                    ['story', 'Stories', catCounts.story],
-                    ['task',  'Tasks',   catCounts.task],
-                    ['other', 'Other',   catCounts.other],
-                  ].map(([val, label, count]) => (
-                    <button key={val}
-                      className={`cat-tab ${val} ${activeTab === val ? 'active' : ''}`}
-                      onClick={() => setActiveTab(val)}>
-                      {label} <span style={{ opacity: .7 }}>({count})</span>
-                    </button>
-                  ))}
-                </div>
-
-                <div className="ticket-list">
-                  {loadingTickets ? (
-                    <div className="empty-state">
-                      <span className="loading-spinner" style={{ margin: '0 auto' }}></span>
-                      <div className="empty-state-text" style={{ marginTop: '12px' }}>Loading tickets…</div>
-                    </div>
-                  ) : filtered.length === 0 ? (
-                    <div className="empty-state">
-                      <div className="empty-state-icon">🔍</div>
-                      <div className="empty-state-text">No tickets match your search.</div>
-                    </div>
-                  ) : filtered.map((t, i) => (
-                    <div key={t.id} className="ticket-row"
-                      style={{ animationDelay: `${i * 0.04}s` }}
-                      onClick={() => setSelectedTicket(t)}>
-                      <div className={`ticket-type-badge ${typeClass(t.type)}`}>
-                        {typeBadge(t.type)}
-                      </div>
-                      <div className="ticket-info">
-                        <div className="ticket-id">{t.id} · {t.sprint}</div>
-                        <div className="ticket-title">{t.title}</div>
-                        <div className="ticket-meta">
-                          <span className="ticket-meta-item">
-                            <span className={`priority-dot ${priorityClass(t.priority)}`}></span>
-                            {t.priority}
-                          </span>
-                          <span className="ticket-meta-item">👤 {t.assignee}</span>
-                          <span className="ticket-meta-item">💎 {t.storyPoints}pts</span>
-                        </div>
-                      </div>
-                      <span className={`status-pill ${statusClass(t.status)}`}>{t.status}</span>
-                    </div>
-                  ))}
-                </div>
+          {/* Release Note Page */}
+          {activePage === 'release-notes' ? (
+            <ReleaseNotesPage tickets={tickets} />
+          ) : (
+            <>
+              {/* Stat Card */}
+              <div className="stats-grid">
+                {[
+                  { label: 'Total Tickets', value: stats.total      ?? tickets.length, icon: '🎫', change: 'from Jira',         dir: 'up'   },
+                  { label: 'Open',          value: stats.open       ?? 0,              icon: '📂', change: 'need attention',     dir: 'down' },
+                  { label: 'In Progress',   value: stats.inProgress ?? 0,              icon: '⚡', change: 'active now',         dir: 'up'   },
+                  { label: 'Critical',      value: stats.critical   ?? 0,              icon: '🚨', change: 'high priority',      dir: 'down' },
+                ].map((s, i) => (
+                  <div key={i} className="stat-card fade-in" style={{ animationDelay: `${i * 0.07}s` }}>
+                    <div className="stat-label">{s.label}</div>
+                    <div className="stat-value">{s.value}</div>
+                    <div className={`stat-change ${s.dir}`}>{s.change}</div>
+                    <div className="stat-icon">{s.icon}</div>
+                  </div>
+                ))}
               </div>
 
-              {/* Charts */}
-              <div className="charts-grid">
-                <div className="card">
-                  <div className="card-header">
-                    <span className="card-title"><span className="card-title-icon">🍩</span> By Category</span>
-                  </div>
-                  <div className="card-body">
-                    <div className="donut-wrap">
-                      <DonutChart
-                        data={[{ value: catCounts.bug || 1 }, { value: catCounts.story || 1 }, { value: catCounts.task || 1 }, { value: catCounts.other || 1 }]}
-                        colors={['#ef4444', '#8b5cf6', '#22c55e', '#f59e0b']}
-                        size={110} stroke={20} />
-                      <div className="donut-legend">
-                        {[['🐛 Bugs', catCounts.bug, '#ef4444'], ['📖 Stories', catCounts.story, '#8b5cf6'], ['✅ Tasks', catCounts.task, '#22c55e'], ['📦 Other', catCounts.other, '#f59e0b']].map(([l, v, c]) => (
-                          <div key={l} className="legend-item">
-                            <span className="legend-dot" style={{ background: c }}></span>
-                            {l}
-                            <span className="legend-val">{v}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
+              {/* Jira Error Banner if connection fail */}
+              {jiraError && (
+                <div className="error-banner">
+                  ⚠️ <strong>Jira connection failed:</strong> {jiraError}. Check your <code>JIRA_API_TOKEN</code> and <code>JIRA_BASE_URL</code> in server.js.
                 </div>
+              )}
 
-                <div className="card">
-                  <div className="card-header">
-                    <span className="card-title"><span className="card-title-icon">📊</span> By Status</span>
-                  </div>
-                  <div className="card-body">
-                    <div className="bar-chart">
+              {/* Dashboard Grid */}
+              <div className="dashboard-grid">
+                {/* Left col: ticket list + charts */}
+                <div className="dashboard-col">
+                  <div className="card">
+                    <div className="card-header">
+                      <span className="card-title"><span className="card-title-icon">🎫</span> Tickets</span>
+                      <span style={{ fontSize: '12px', color: 'var(--gray-400)' }}>
+                        {filtered.length} of {tickets.length} shown
+                      </span>
+                    </div>
+
+                    {/* Category tabs */}
+                    <div className="category-tabs">
                       {[
-                        ['Open',        stats.open,       stats.total || 1, '#38bdf8'],
-                        ['In Progress', stats.inProgress, stats.total || 1, '#f59e0b'],
-                        ['Done',        stats.done,       stats.total || 1, '#22c55e'],
-                      ].map(([label, val, total, color]) => (
-                        <div key={label} className="bar-row">
-                          <div className="bar-label">
-                            <span>{label}</span>
-                            <span style={{ fontWeight: '700', color: 'var(--gray-800)', fontFamily: "'DM Mono',monospace" }}>{val}</span>
+                        ['all',   'All',     tickets.length],
+                        ['bug',   'Bugs',    catCounts.bug  ],
+                        ['story', 'Stories', catCounts.story],
+                        ['task',  'Tasks',   catCounts.task ],
+                        ['other', 'Other',   catCounts.other],
+                      ].map(([val, label, count]) => (
+                        <button key={val}
+                          className={`cat-tab ${val} ${activeTab === val ? 'active' : ''}`}
+                          onClick={() => setActiveTab(val)}>
+                          {label} <span style={{ opacity: .7 }}>({count})</span>
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Ticket rows */}
+                    <div className="ticket-list">
+                      {loadingTickets ? (
+                        <div className="empty-state">
+                          <span className="loading-spinner" style={{ margin: '0 auto' }}></span>
+                          <div className="empty-state-text" style={{ marginTop: '12px' }}>
+                            Fetching tickets from Jira…
                           </div>
-                          <div className="bar-track">
-                            <div className="bar-fill" style={{ width: `${(val / total) * 100}%`, background: color }}></div>
+                        </div>
+                      ) : filtered.length === 0 ? (
+                        <div className="empty-state">
+                          <div className="empty-state-icon">🔍</div>
+                          <div className="empty-state-text">No tickets match your search.</div>
+                        </div>
+                      ) : filtered.map((t, i) => (
+                        <div key={t.id} className="ticket-row fade-in"
+                          style={{ animationDelay: `${i * 0.03}s` }}
+                          onClick={() => setSelectedTicket(t)}>
+                          <div className={`ticket-type-badge ${typeClass(t.type)}`}>
+                            {typeBadge(t.type)}
                           </div>
+                          <div className="ticket-info">
+                            <div className="ticket-id">{t.id} · {t.sprint}</div>
+                            <div className="ticket-title">{t.title}</div>
+                            {/* Gemini AI summary preview */}
+                            {t.aiSummary && (
+                              <div className="ticket-ai-preview">✨ {t.aiSummary}</div>
+                            )}
+                            <div className="ticket-meta">
+                              <span className="ticket-meta-item">
+                                <span className={`priority-dot ${priorityClass(t.priority)}`}></span>
+                                {t.priority}
+                              </span>
+                              <span className="ticket-meta-item">👤 {t.assignee}</span>
+                              {t.storyPoints > 0 && (
+                                <span className="ticket-meta-item">💎 {t.storyPoints}pts</span>
+                              )}
+                              {t.aiCategory && (
+                                <span className="ai-cat-chip">{t.aiCategory}</span>
+                              )}
+                            </div>
+                          </div>
+                          <span className={`status-pill ${statusClass(t.status)}`}>{t.status}</span>
                         </div>
                       ))}
                     </div>
                   </div>
-                </div>
-              </div>
-            </div>
 
-            {/* ── AI SIDEBAR ── */}
-            <div className="dashboard-col">
-              <div className="card">
-                <div className="card-header">
-                  <span className="card-title"><span className="card-title-icon">✨</span> Gemini AI Summary</span>
-                  <span className="ai-badge" style={{ margin: 0 }}>AI</span>
-                </div>
-                <div className="card-body">
-                  {aiAnalysis ? (
-                    <>
-                      <div className="ai-summary-box">
-                        <div className="ai-badge">✨ Gemini 1.5 Pro</div>
-                        <p style={{ fontSize: '13px', color: 'var(--gray-700)', lineHeight: '1.7' }}>
-                          {aiAnalysis.summary}
-                        </p>
+                  {/* Charts row */}
+                  <div className="charts-grid">
+                    <div className="card">
+                      <div className="card-header">
+                        <span className="card-title"><span className="card-title-icon">🍩</span> By Category</span>
                       </div>
-
-                      <div style={{ fontSize: '13px', fontWeight: '700', color: 'var(--gray-700)', marginBottom: '8px' }}>
-                        💡 Insights
-                      </div>
-                      <div className="insight-list">
-                        {aiAnalysis.insights.map((ins, i) => (
-                          <div key={i} className={`insight-item ${ins.type}`}>
-                            <span className="insight-icon">{insightIcon(ins.type)}</span>
-                            <span>{ins.text}</span>
+                      <div className="card-body">
+                        <div className="donut-wrap">
+                          <DonutChart
+                            data={[
+                              { value: catCounts.bug   || 1 },
+                              { value: catCounts.story || 1 },
+                              { value: catCounts.task  || 1 },
+                              { value: catCounts.other || 1 },
+                            ]}
+                            colors={['#ef4444', '#8b5cf6', '#22c55e', '#f59e0b']}
+                            size={110} stroke={20} />
+                          <div className="donut-legend">
+                            {[
+                              ['🐛 Bugs',    catCounts.bug,   '#ef4444'],
+                              ['📖 Stories', catCounts.story, '#8b5cf6'],
+                              ['✅ Tasks',   catCounts.task,  '#22c55e'],
+                              ['📦 Other',   catCounts.other, '#f59e0b'],
+                            ].map(([l, v, c]) => (
+                              <div key={l} className="legend-item">
+                                <span className="legend-dot" style={{ background: c }}></span>
+                                {l}
+                                <span className="legend-val">{v}</span>
+                              </div>
+                            ))}
                           </div>
-                        ))}
+                        </div>
                       </div>
+                    </div>
 
-                      <div style={{ fontSize: '13px', fontWeight: '700', color: 'var(--gray-700)', margin: '16px 0 8px' }}>
-                        🎯 Suggestions
+                    <div className="card">
+                      <div className="card-header">
+                        <span className="card-title"><span className="card-title-icon">📊</span> By Status</span>
                       </div>
-                      <div className="suggestion-list">
-                        {aiAnalysis.suggestions.map((s, i) => (
-                          <div key={i} className="suggestion-item">
-                            <div className="suggestion-num">{s.priority}</div>
-                            <div>
-                              <div className="suggestion-action">{s.action}</div>
-                              <div className="suggestion-detail">{s.detail}</div>
+                      <div className="card-body">
+                        <div className="bar-chart">
+                          {[
+                            ['Open',        stats.open        || 0, '#38bdf8'],
+                            ['In Progress', stats.inProgress  || 0, '#f59e0b'],
+                            ['Done',        stats.done        || 0, '#22c55e'],
+                          ].map(([label, val, color]) => (
+                            <div key={label} className="bar-row">
+                              <div className="bar-label">
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: color, display: 'inline-block' }}></span>
+                                  {label}
+                                </span>
+                                <span style={{ fontWeight: '700', fontFamily: "'DM Mono',monospace" }}>{val}</span>
+                              </div>
+                              <div className="bar-track">
+                                <div className="bar-fill" style={{ width: `${(val / (tickets.length || 1)) * 100}%`, background: color }}></div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right column: AI analysis */}
+                <div className="dashboard-col">
+                  <div className="card">
+                    <div className="card-header">
+                      <span className="card-title"><span className="card-title-icon">✨</span> Gemini AI Analysis</span>
+                      <span className="ai-badge" style={{ margin: 0 }}>AI</span>
+                    </div>
+                    <div className="card-body">
+                      {loadingAI ? (
+                        <div className="ai-loading">
+                          <span className="loading-spinner"></span>
+                          <span style={{ color: 'var(--sky-600)', fontSize: '13px' }}>Gemini is analyzing your tickets…</span>
+                        </div>
+                      ) : aiAnalysis ? (
+                        <>
+                          <div className="ai-summary-box">
+                            <div className="ai-badge">✨ Gemini 2.5 Flash</div>
+                            <p style={{ fontSize: '13px', color: 'var(--gray-700)', lineHeight: '1.7' }}>
+                              {aiAnalysis.summary}
+                            </p>
+                          </div>
+
+                          <div className="section-label">💡 Insights</div>
+                          <div className="insight-list">
+                            {(aiAnalysis.insights || []).map((ins, i) => (
+                              <div key={i} className={`insight-item ${ins.type}`}>
+                                <span className="insight-icon">
+                                  {{ warning: '⚠️', positive: '✅', info: 'ℹ️' }[ins.type] || '•'}
+                                </span>
+                                <span>{ins.text}</span>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div className="section-label" style={{ marginTop: '16px' }}>🎯 Suggestions</div>
+                          <div className="suggestion-list">
+                            {(aiAnalysis.suggestions || []).map((s, i) => (
+                              <div key={i} className="suggestion-item">
+                                <div className="suggestion-num">{s.priority || `P${i+1}`}</div>
+                                <div>
+                                  <div className="suggestion-action">{s.action}</div>
+                                  <div className="suggestion-detail">{s.detail}</div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </>
+                      ) : (
+                        <div className="empty-state" style={{ padding: '20px 0' }}>
+                          <div className="empty-state-icon">✨</div>
+                          <div className="empty-state-text">
+                            AI analysis will appear once tickets are loaded.
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Priority breakdown */}
+                  <div className="card">
+                    <div className="card-header">
+                      <span className="card-title"><span className="card-title-icon">🚦</span> Priority Breakdown</span>
+                    </div>
+                    <div className="card-body">
+                      <div className="bar-chart">
+                        {[
+                          ['Critical', tickets.filter(t => t.priority === 'Critical' || t.priority === 'Highest').length, '#ef4444'],
+                          ['High',     tickets.filter(t => t.priority === 'High').length,     '#f97316'],
+                          ['Medium',   tickets.filter(t => t.priority === 'Medium').length,   '#f59e0b'],
+                          ['Low',      tickets.filter(t => t.priority === 'Low'    || t.priority === 'Lowest').length, '#22c55e'],
+                        ].map(([label, val, color]) => (
+                          <div key={label} className="bar-row">
+                            <div className="bar-label">
+                              <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: color, display: 'inline-block' }}></span>
+                                {label}
+                              </span>
+                              <span style={{ fontWeight: '700', fontFamily: "'DM Mono',monospace" }}>{val}</span>
+                            </div>
+                            <div className="bar-track">
+                              <div className="bar-fill" style={{ width: `${(val / (tickets.length || 1)) * 100}%`, background: color }}></div>
                             </div>
                           </div>
                         ))}
                       </div>
-                    </>
-                  ) : (
-                    <div style={{ textAlign: 'center', padding: '20px', color: 'var(--gray-400)' }}>
-                      <span className="loading-spinner" style={{ margin: '0 auto' }}></span>
                     </div>
-                  )}
-                </div>
-              </div>
+                  </div>
 
-              {/* Priority breakdown — driven by live stats */}
-              <div className="card">
-                <div className="card-header">
-                  <span className="card-title"><span className="card-title-icon">🚦</span> Priority Breakdown</span>
-                </div>
-                <div className="card-body">
-                  <div className="bar-chart">
-                    {[
-                      ['Critical', tickets.filter(t => t.priority === 'Critical').length, '#ef4444'],
-                      ['High',     tickets.filter(t => t.priority === 'High').length,     '#f97316'],
-                      ['Medium',   tickets.filter(t => t.priority === 'Medium').length,   '#f59e0b'],
-                      ['Low',      tickets.filter(t => t.priority === 'Low').length,      '#22c55e'],
-                    ].map(([label, val, color]) => (
-                      <div key={label} className="bar-row">
-                        <div className="bar-label">
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: color, display: 'inline-block' }}></span>
-                            {label}
-                          </span>
-                          <span style={{ fontWeight: '700', fontFamily: "'DM Mono',monospace" }}>{val}</span>
-                        </div>
-                        <div className="bar-track">
-                          <div className="bar-fill" style={{ width: `${(val / (tickets.length || 1)) * 100}%`, background: color }}></div>
-                        </div>
+                  {/* Quick release notes shortcut */}
+                  <div className="card release-cta" onClick={() => setActivePage('release-notes')} style={{ cursor: 'pointer' }}>
+                    <div className="card-header" style={{ border: 'none' }}>
+                      <span className="card-title"><span className="card-title-icon">📋</span> Release Notes</span>
+                      <span className="ai-badge" style={{ margin: 0 }}>AI</span>
+                    </div>
+                    <div className="card-body">
+                      <p style={{ fontSize: '13px', color: 'var(--gray-600)', lineHeight: '1.6' }}>
+                        Generate professional release notes from your Jira tickets using Gemini AI and your company knowledge base.
+                      </p>
+                      <div className="btn-primary" style={{ marginTop: '10px', display: 'inline-block', cursor: 'pointer' }}>
+                        Open Release Notes →
                       </div>
-                    ))}
+                    </div>
                   </div>
                 </div>
               </div>
-
-              {/* Sprint Velocity */}
-              <div className="card">
-                <div className="card-header">
-                  <span className="card-title"><span className="card-title-icon">⚡</span> Sprint Velocity</span>
-                </div>
-                <div className="card-body">
-                  {[['Sprint 11', '18 pts closed', '✅'], ['Sprint 12', '31 pts active', '⚡'], ['Sprint 13', '50 pts planned', '📅']].map(([sprint, info, icon]) => (
-                    <div key={sprint} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px', background: 'var(--sky-50)', borderRadius: '10px', marginBottom: '8px' }}>
-                      <span style={{ fontSize: '18px' }}>{icon}</span>
-                      <div>
-                        <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--gray-800)' }}>{sprint}</div>
-                        <div style={{ fontSize: '12px', color: 'var(--gray-500)' }}>{info}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
+            </>
+          )}
         </div>
       </main>
 
@@ -609,14 +870,12 @@ function Dashboard({ user, onLogout }) {
   );
 }
 
-// ─── ROOT APP ──────────────────────────────────────────────────────────────────
+// Main App component that manages user authentication state and conditionally renders either the Dashboard or the LoginPage based on whether a user is logged in or not.
 function App() {
   const [user, setUser] = useState(null);
-
   return user
     ? <Dashboard user={user} onLogout={() => setUser(null)} />
     : <LoginPage onLogin={setUser} />;
 }
 
 export default App;
-
