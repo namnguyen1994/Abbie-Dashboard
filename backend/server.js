@@ -2,11 +2,21 @@
 const express = require('express');
 const cors    = require('cors');
 const axios   = require('axios');   
-require ('dotenv').config(); // Load environment variables from .env file
+require('dotenv').config({ path: __dirname + '/.env' }); // Load environment variables from .env file
+console.log('ENV CHECK:', process.env.JIRA_BASE_URL, process.env.JIRA_PROJECT);
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+const CONFIG = {
+  JIRA_BASE_URL : process.env.JIRA_BASE_URL,
+  JIRA_EMAIL    : process.env.JIRA_EMAIL,
+  JIRA_API_TOKEN: process.env.JIRA_API_TOKEN,
+  JIRA_PROJECT  : process.env.JIRA_PROJECT,
+  GEMINI_API_KEY: process.env.GEMINI_API_KEY,
+  KB_URL        : process.env.KB_URL,
+};
 
 // Sample user login information to enable quick login
 const MOCK_USERS = [

@@ -102,8 +102,8 @@ It also shows error messages when login fails and provides visual feedback durin
     <div className="login-page">
       <div className="login-card fade-in">
         <div className="login-logo">
-          <img src="/dataminr_logo.webp" alt="Datamir" className="login-logo-img" />
-          <span className="login-logo-text">Datamir<span>Dashboard</span></span>
+          <img src="/dataminr_logo.webp" alt="Dataminr" className="login-logo-img" />
+          <span className="login-logo-text">Dataminr<span>Dashboard</span></span>
         </div>
 
         <h1 className="login-h">Welcome back</h1>

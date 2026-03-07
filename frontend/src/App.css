@@ -102,6 +102,13 @@ body {
   animation: glow 3s ease infinite;
 }
 
+.login-logo-img {
+  width: 90px;
+  height: 90px;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
 /* Login Logo Text styles */
 .login-logo-text { font-family: 'Playfair Display', serif; font-size: 24px; color: var(--sky-700); font-weight: 700; }
 .login-logo-text span { color: var(--sky-400); }
