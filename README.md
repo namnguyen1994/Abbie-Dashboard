@@ -3,6 +3,7 @@ This is a full-stack web dashboard that connects to an Organization Jira account
 This dashboard was built with React (frontend) and Node.js/Express (backend).
 
 Main Features:
+
     * Live Jira Integration: Pulls real tickets from your Jira project automatically
     * Gemini AI Categorization: Categorizes each ticket as Bug, Defect, Story, Task, or Other
     * AI Summaries: Gemini AI help writes a short summary for every Jira ticket
@@ -50,6 +51,7 @@ Project Structure
         └── package.json
 
 To Getting Started, please ensure the following prerequisites are met:
+
     * Node.js v18 or higher
     * A Jira account with API access
     * A Google Gemini API key
