@@ -29,7 +29,9 @@ Tech Stack
         - Google Gemini AI to categorize the ticket, provide short summary, and write release note.
 
 Project Structure
+
     Abby Dashboard/
+    |
     ├── backend/
     │   ├── .env               
     │   ├── .gitignore         
@@ -52,6 +54,7 @@ To Getting Started, please ensure the following prerequisites are met:
     * A Google Gemini API key
 
 Main step:
+
     1. Download the dashboard repository from github
 
     2. Set up the backend using following command in visual studio terminal:
