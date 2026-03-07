@@ -13,6 +13,7 @@ Main Features:
 
 
 Tech Stack
+
     * Frontend:
         - React for UI Framework
         - Vite to aid with development and build tool
