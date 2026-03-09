@@ -485,7 +485,8 @@ If there's an error (e.g., Jira offline), it sets an error message to be display
 
   //Calculating the count of tickets for each category (bug, story, task, other) to be displayed as badges in the navigation menu, providing users with a quick overview of the distribution of different types of tickets in their Jira project.
   const catCounts = {
-    bug   : tickets.filter(t => t.type === 'bug'    || t.type === 'defect').length,
+    bug   : tickets.filter(t => t.type === 'bug').length,
+    defect: tickets.filter(t => t.type === 'defect').length,
     story : tickets.filter(t => t.type === 'story').length,
     task  : tickets.filter(t => t.type === 'task').length,
     other : tickets.filter(t => t.type === 'other').length,
@@ -497,6 +498,7 @@ If there's an error (e.g., Jira offline), it sets an error message to be display
     { id: 'tickets',       icon: '🎫', label: 'All Tickets', badge: stats.total },
     { id: 'bugs',          icon: '🐛', label: 'Bugs',        badge: catCounts.bug,   badgeColor: 'red' },
     { id: 'stories',       icon: '📖', label: 'Stories',     badge: catCounts.story  },
+    { id: 'defects',       icon: '⚠️', label: 'Defects',     badge: catCounts.defect, badgeColor: 'red' },
     { id: 'tasks',         icon: '✅', label: 'Tasks',       badge: catCounts.task   },
     { id: 'other',         icon: '📦', label: 'Other' },
     { id: 'release-notes', icon: '📋', label: 'Release Notes' },
@@ -504,7 +506,7 @@ If there's an error (e.g., Jira offline), it sets an error message to be display
 
   const handleNav = (id) => {
     setActivePage(id);
-    const map = { bugs: 'bug', stories: 'story', tasks: 'task', other: 'other' };
+    const map = { bugs: 'bug', defects: 'defect', stories: 'story', tasks: 'task', other: 'other' };
     setActiveTab(map[id] || 'all');
   };
 
@@ -513,6 +515,7 @@ If there's an error (e.g., Jira offline), it sets an error message to be display
     dashboard    : '📊 Dashboard',
     tickets      : '🎫 All Tickets',
     bugs         : '🐛 Bug Tracker',
+    defects      : '⚠️ Defects', 
     stories      : '📖 User Stories',
     tasks        : '✅ Tasks',
     other        : '📦 Other Tickets',
@@ -628,6 +631,7 @@ If there's an error (e.g., Jira offline), it sets an error message to be display
                       {[
                         ['all',   'All',     tickets.length],
                         ['bug',   'Bugs',    catCounts.bug  ],
+                        ['defect', 'Defects', catCounts.defect],
                         ['story', 'Stories', catCounts.story],
                         ['task',  'Tasks',   catCounts.task ],
                         ['other', 'Other',   catCounts.other],

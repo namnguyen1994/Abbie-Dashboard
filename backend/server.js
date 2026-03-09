@@ -35,7 +35,7 @@ async function callGemini(prompt) {
 
   const response = await axios.post(url, { 
     contents: [{ parts: [{ text: prompt }] }],
-    generationConfig: { temperature: 0.4, maxOutputTokens: 1500 },
+    generationConfig: { temperature: 0.4, maxOutputTokens: 8192 },
   });
 
   // Navigate the response structure to extract the generated text, with safety checks for each level
@@ -99,13 +99,17 @@ function normaliseTicket(issue) {
 
   //  Determine the ticket type based on the issue type name, with a fallback to 'other' if it doesn't match known types
   const rawType = (f.issuetype?.name || 'Other').toLowerCase();
+  const labels  = (f.labels || []).map(l => l.toLowerCase());
+
   let type = 'other';
-  if (rawType.includes('bug')){
+  if (rawType.includes('bug') || labels.some(l => l.includes('bug'))) {
     type = 'bug';
-  } else if (rawType.includes('story')){
+  } else if (rawType.includes('story') || labels.some(l => l.includes('story'))) {
     type = 'story';
-  } else if (rawType.includes('task')){
+  } else if (rawType.includes('task') || labels.some(l => l.includes('task'))) {
     type = 'task';
+  } else if (rawType.includes('defect') || labels.some(l => l.includes('defect'))) {
+    type = 'defect';
   }
 
   // Return a normalized ticket object with all the necessary fields for the frontend, using safe navigation and default values where appropriate
@@ -261,7 +265,7 @@ If there's an error during the AI call or response parsing, log the error and re
       const ai = parsed.find(p => p.index === i) || {};
       return {
         ...t,
-        type      : (ai.category || t.type).toLowerCase().replace('defect', 'bug'),
+        type      : (ai.category || t.type).toLowerCase(),
         aiCategory: ai.category || null,
         aiSummary : ai.summary  || null,
       };
