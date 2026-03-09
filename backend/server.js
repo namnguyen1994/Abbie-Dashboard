@@ -48,7 +48,7 @@ async function callGemini(prompt) {
   The function uses basic authentication with the Jira API token and email, and returns an array of issues or an empty array if there are no issues found.
 */
 async function fetchJiraTickets(maxResults = 50) {
-  const jql   = `project=${CONFIG.JIRA_PROJECT} ORDER BY updated DESC`;
+  const jql = `project=${CONFIG.JIRA_PROJECT} ORDER BY updated DESC`;
   const url   = `${CONFIG.JIRA_BASE_URL}/rest/api/3/search/jql`;
   const token = Buffer.from(`${CONFIG.JIRA_EMAIL}:${CONFIG.JIRA_API_TOKEN}`).toString('base64');
 
@@ -324,14 +324,17 @@ app.post('/api/ai/analysis', async (req, res) => {
   const { tickets } = req.body;
   if (!tickets?.length) return res.json({ summary: 'No tickets to analyse.', insights: [], suggestions: [] });
 
-  const bugCount      = tickets.filter(t => t.type === 'bug' || t.type === 'defect').length;
+  const bugCount    = tickets.filter(t => t.type === 'bug').length;
+  const defectCount = tickets.filter(t => t.type === 'defect').length;
+  const storyCount  = tickets.filter(t => t.type === 'story').length;
+  const taskCount   = tickets.filter(t => t.type === 'task').length;
   const criticalCount = tickets.filter(t => t.priority === 'Critical' || t.priority === 'Highest').length;
   const unassigned    = tickets.filter(t => t.assignee === 'Unassigned').length;
 
   // Construct a prompt for Gemini AI that provides an overview of the tickets and asks for a summary of team health, insights, and suggestions for improvement.
   const prompt = `
 You are an agile team coach reviewing ${tickets.length} Jira tickets.
-Stats: ${bugCount} bugs/defects, ${criticalCount} critical-priority tickets, ${unassigned} unassigned.
+Stats: ${bugCount} bugs, ${defectCount} defects, ${storyCount} stories, ${taskCount} tasks, ${criticalCount} critical-priority tickets, ${unassigned} unassigned.
 Top tickets: ${tickets.slice(0, 8).map(t => `${t.id}(${t.type},${t.priority})`).join(', ')}
 
 Return a JSON object with:
