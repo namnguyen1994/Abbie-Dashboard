@@ -16,7 +16,11 @@ const CONFIG = {
   JIRA_PROJECT  : process.env.JIRA_PROJECT,
   GEMINI_API_KEY: process.env.GEMINI_API_KEY,
   KB_URL        : process.env.KB_URL,
+  KB_RELEASE_URL: process.env.KB_RELEASE_URL,
 };
+
+//Decleare valid values for "Include Release Notes" field in Jira Tickets
+const RELEASE_NOTE_TYPES = ['null', 'public', 'internal', 'hidden'];
 
 // Sample user login information to enable quick login
 const MOCK_USERS = [
@@ -35,7 +39,7 @@ async function callGemini(prompt) {
 
   const response = await axios.post(url, { 
     contents: [{ parts: [{ text: prompt }] }],
-    generationConfig: { temperature: 0.4, maxOutputTokens: 8192 },
+    generationConfig: { temperature: 0.4, maxOutputTokens: 16384 },
   });
 
   // Navigate the response structure to extract the generated text, with safety checks for each level
@@ -89,6 +93,8 @@ function normaliseTicket(issue) {
       labels      : [],
       comments    : 0,
       attachments : 0,
+      fixVersion  : null,
+      includeReleaseNotes: 'null',
       aiSummary   : null,
       aiCategory  : null,
     };
@@ -111,6 +117,14 @@ function normaliseTicket(issue) {
   } else if (rawType.includes('defect') || labels.some(l => l.includes('defect'))) {
     type = 'defect';
   }
+  
+  const fixVersionRaw = f['customfield_10150']?.value || null;
+
+  const rnRaw = f['customfield_10151']?.value?.toLowerCase();
+  const includeReleaseNotes = RELEASE_NOTE_TYPES.includes(rnRaw) ? rnRaw : 'null';
+
+  console.log(`[${issue.key}] customfield_10150: `, JSON.stringify(f['customfield_10150']));
+  console.log(`[${issue.key}] customfield_10151: `, JSON.stringify(f['customfield_10151']));
 
   // Return a normalized ticket object with all the necessary fields for the frontend, using safe navigation and default values where appropriate
   return {
@@ -129,9 +143,64 @@ function normaliseTicket(issue) {
     labels      : f.labels                              || [],
     comments    : f.comment?.total                      || 0,
     attachments : f.attachment?.length                  || 0,
+    fixVersion  : fixVersionRaw,
+    includeReleaseNotes,
     aiSummary   : null,
     aiCategory  : null,
   };
+}
+
+function buildReleaseNoteSuggestionPrimpt(ticket) {
+  const { id, title, description, type, priority, includeReleaseNotes } = ticket;
+  const desc = description || 'No description provided.';
+
+  if (includeReleaseNotes === 'hidden') {
+    return `Ticket ${id} is marked as "hidden" for release notes and should not be included in the release notes.`;
+  }
+
+  const baseContext = `
+Ticket ID: ${id}
+Title    : ${title}
+Type     : ${type}
+Priority : ${priority}
+Description: ${desc}
+`.trim();
+
+  const AiInstructions = {
+    null: `
+The "Include Release Notes" field is not set for this ticket. Provide a general suggesstion that the documentation team can use as a starting point.
+Include both a customer-facing paragraph (public) and an internal note for employees so the team can decide which parts to publish.`,
+
+    public: `
+This ticket is marked as "public" for release notes, which means it should be included in the customer-facing release notes.
+Write release-note content that is safe for external customers. Use friendly, non-technical language. Do not include internal implementation details,
+workaround steps, or anything that could expose system architecture.`,
+
+    internal: `
+This ticket is marked as "internal" for release notes. Write a release-note content for employees only.
+Include two sections:
+1. A "Public Summary" suitable for customers (if any public-facing impact exists, otherwise say "No customer impact")
+2. An "Internal Details" section that can include technical details, implementation notes, root-cause analysis, and any other information that internal staff should know.`,
+  };
+
+  return `
+You are a technical writer helping a documentation team draft release notes for a Jira ticket.
+
+Company release-note style guide (REQUIRED - follow this for structure, tone, and formatting): ${CONFIG.KB_RELEASE_URL}
+
+${baseContext}
+
+Audience guidance:
+${AiInstructions[includeReleaseNotes]}
+
+Return a JSON object with the following keys:
+- "suggestion" : the suggested release note text (plain string, markdown allowed)
+- "publicPart" : the public-safe portion only (string, or null if not applicable)
+- "internalPart": the internal-only portion (string, or null if not applicable)
+- "tips"      : array of 2-3 short strings with writing tips for this ticket
+
+Respond ONLY with valid JSON, no markdown formatting in the response.
+`.trim();
 }
 
 // ── AUTH (mocked for demo) ─────────────────────────────────
@@ -163,6 +232,15 @@ app.get('/api/tickets', async (req, res) => {
   try {
     const issues  = await fetchJiraTickets(50);
     const tickets = issues.map(normaliseTicket);
+
+    const {fixVersion, includeReleaseNotes} = req.query;
+    if (fixVersion) {
+      tickets = tickets.filter(t => t.fixVersion === fixVersion);
+    }
+    if (includeReleaseNotes) {
+      tickets = tickets.filter(t => t.includeReleaseNotes === includeReleaseNotes);
+    }
+
     res.json({ tickets, total: tickets.length });
   } catch (err) {
     console.error('Full error:', err.response?.data);
@@ -201,6 +279,9 @@ app.get('/api/stats', async (req, res) => {
 
     // Helper function to count tickets based on a specific key and value, used to calculate various stats
     const count = (key, val) => tickets.filter(t => t[key] === val).length;
+
+    const fixVersions = [...new Set(tickets.map(t => t.fixVersion).filter(Boolean))].sort(); // Get unique fix versions for potential filtering in the frontend
+    
     res.json({
       total     : tickets.length,
       open      : count('status', 'Open') + count('status', 'To Do'),
@@ -213,6 +294,7 @@ app.get('/api/stats', async (req, res) => {
         task : count('type', 'task'),
         other: count('type', 'other'),
       },
+      fixVersions,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -228,8 +310,16 @@ app.post('/api/ai/categorize', async (req, res) => {
   const { tickets } = req.body;
   if (!tickets?.length) return res.json({ tickets: [] });
 
-  const list = tickets.map((t, i) =>
-    `[${i}] ID:${t.id} | Type:${t.type} | Title:${t.title} | Desc:${(t.description || '').slice(0, 120)}` // Format each ticket as a single line with key details for the AI to analyze
+   // Process in batches of 10 to avoid Gemini response truncation on large ticket lists
+  const BATCH_SIZE = 10;
+  let enriched = [...tickets];
+ 
+  try {
+    for (let i = 0; i < tickets.length; i += BATCH_SIZE) {
+      const batch = tickets.slice(i, i + BATCH_SIZE);
+ 
+  const list = batch.map((t, j) =>
+    `[${i + j}] ID:${t.id} | Type:${t.type} | Title:${t.title} | Desc:${(t.description || '').slice(0, 120)}` // Format each ticket as a single line with key details for the AI to analyze
   ).join('\n');
 
   // Construct a prompt for Gemini AI that instructs it to categorize each ticket and provide a summary, with clear rules for categorization and a formatted list of tickets to analyze
@@ -257,20 +347,21 @@ Call Gemini AI with constructed prompt and handle the response.
 If the response is successful, parse the JSON and enrich the original tickets with the AI's category and summary.
 If there's an error during the AI call or response parsing, log the error and return the original tickets without enrichment to ensure the frontend can still display them.
 */
-  try {
     const raw    = await callGemini(prompt);
     const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim());
 
-    const enriched = tickets.map((t, i) => {
-      const ai = parsed.find(p => p.index === i) || {};
-      return {
-        ...t,
-        type      : (ai.category || t.type).toLowerCase(),
-        aiCategory: ai.category || null,
-        aiSummary : ai.summary  || null,
-      };
-    });
-
+     parsed.forEach(ai => {
+        const idx = ai.index;
+        if (enriched[idx]) {
+          enriched[idx] = {
+            ...enriched[idx],
+            type      : (ai.category || enriched[idx].type).toLowerCase(),
+            aiCategory: ai.category || null,
+            aiSummary : ai.summary  || null,
+          };
+        }
+      });
+    }
     res.json({ tickets: enriched });
   } catch (err) {
     console.error('Gemini categorise error:', err.message);
@@ -319,6 +410,34 @@ Respond ONLY with valid JSON, no markdown.
   }
 });
 
+app.post('/api/ai/release-note-suggestion', async (req, res) => {
+  const { ticket } = req.body;
+  if (!ticket) return res.status(400).json({ error: 'No ticket provided' });
+
+  if (ticket.includeReleaseNotes === 'hidden') {
+    return res.json({ 
+      suggestion: 'This ticket is marked as "hidden" so no release notes are required.',
+      publicPart: null,
+      internalPart: null,
+      tips: ['No action needed for hidden tickets.'],
+    });
+  }
+
+  const prompt = buildReleaseNoteSuggestionPrompt(ticket);
+  if (!prompt){
+    return res.status(400).json({ error: 'Unable to build prompt for this ticket' });
+  }
+
+  try {
+    const raw  = await callGemini(prompt);
+    const data = JSON.parse(raw.replace(/```json|```/g, '').trim());
+    res.json(data);
+  } catch (err) {
+    console.error('Release note suggestion error:', err.message);
+    res.status(500).json({ error: err.message });
+  } 
+});
+
 //This endpoint takes a list of tickets and sends them to Gemini AI for analysis to provide insights on team health, potential risks, and suggestions for improvement.
 app.post('/api/ai/analysis', async (req, res) => {
   const { tickets } = req.body;
@@ -361,43 +480,68 @@ app.post('/api/ai/release-notes', async (req, res) => {
   if (!tickets?.length) return res.status(400).json({ error: 'No tickets provided' });
 
   const kbSource = kbUrl || CONFIG.KB_URL;
-  const bugs     = tickets.filter(t => t.type === 'bug' || t.type === 'defect');
-  const stories  = tickets.filter(t => t.type === 'story');
-  const tasks    = tickets.filter(t => t.type === 'task');
-  const others   = tickets.filter(t => t.type === 'other');
+  const ReleaseStyleURL = CONFIG.KB_RELEASE_URL;
+
+  const activeTickets = tickets.filter(t => t.includeReleaseNotes !== 'hidden');
+
+  const publicTickets = activeTickets.filter(t => t.includeReleaseNotes === 'public');
+  const internalTickets = activeTickets.filter(t => t.includeReleaseNotes === 'internal');
+  const nullTickets = activeTickets.filter(t => t.includeReleaseNotes === 'null');
+
+  const bugs     = activeTickets.filter(t => t.type === 'bug' || t.type === 'defect');
+  const stories  = activeTickets.filter(t => t.type === 'story');
+  const tasks    = activeTickets.filter(t => t.type === 'task');
+  const others   = activeTickets.filter(t => t.type === 'other');
 
   // Helper function to format a list of tickets into a markdown bullet list for the AI prompt, showing the ticket ID and title. If the list is empty, it returns "(none)".
   const fmt      = (arr) => arr.map(t => `- ${t.id}: ${t.title}`).join('\n') || '  (none)'; 
+  const fmtFull = (arr) => arr.map(t => `- ${t.id} [${t.includeReleaseNotes}]:  ${t.title}`).join('\n') || '  (none)';
 
   const prompt = `
 You are a technical writer creating professional release notes for version "${version || 'v1.0'}".
 
-Company knowledge base URL (use for tone, style, and product terminology): ${kbSource}
+Release notes style guide (REQUIRED - follow this for structure, tone, and formatting): ${ReleaseStyleURL}
 
-Ticket summary:
-[Bug Fixes & Defects]
-${fmt(bugs)}
+Company knowledge base URL (use for correct product names, feature terminology and any product-specific phrasing): ${kbSource}
 
-[New Features / Stories]
-${fmt(stories)}
+---TICKET GROUPING BY AUDIENCE---
 
-[Tasks / Improvements]
-${fmt(tasks)}
+PUBLIC tickets (safe for customers - use friendly, non-technical language):
+${fmt(publicTickets)}
 
-[Other]
-${fmt(others)}
+INTERNAL tickets (employees only - include both public summary AND internal details):
+${fmt(internalTickets)}
 
-Write professional, customer-facing release notes in markdown. Structure:
-1. ## Release Notes - ${version || 'v1.0'}  (include today's date)
-2. ### Overview  (1 short paragraph)
-3. ### Bug Fixes  (bullet list, friendly language)
-4. ### New Features  (bullet list)
-5. ### Improvements  (bullet list)
-6. ### Notes  (any caveats or upgrade instructions)
+UNSET / NULL tickets (no audience specified - use writer's discretion; lean toward public-safe):
+${fmt(nullTickets)}
 
-Use the company knowledge base URL provided for proper product naming and terminology.
+---TICKET GROUPING BY TYPE---
+Bug Fixes & Defects : ${fmt(bugs)}
+
+New Features / Stories : ${fmt(stories)}
+
+Tasks / Improvements : ${fmt(tasks)}
+
+Other : ${fmt(others)}
+
+Write two sections:
+## PUBLIC RELEASE NOTES
+Professional, customer-facing notes for "${version || 'v1.0'}". Structure:
+1. ### Overview  (1 short paragraph)
+2. ### Bug Fixes  (bullet list, friendly language)
+3. ### New Features  (bullet list)
+4. ### Improvements  (bullet list)
+Include only PUBLIC and NULL tickets here. Exclude all INTERNAL-only details
+
+## INTERNAL RELEASE NOTES
+Employee-facing notes for "${version || 'v1.0'}". Structure:
+1. ### Internal Overview (brief paragraph about what changed operationally)
+2. ### Internal Notes (bullet list with technical detail for INTERNAL tickets)
+3. ### Action Items (any steps employees need to take, e.g. config changes, deployments, customer communication)
+
+Follow the release notes style guide for tone, structure, and formatting. Use the knowledge base URL for any product-specific terminology or phrasing.
 Return ONLY the markdown text, no extra commentary.
-`;
+`.trim();
 
   try {
     const notes = await callGemini(prompt);

@@ -808,3 +808,29 @@ button.icon-btn {
 @media (max-width: 860px) {
   .release-layout { grid-template-columns: 1fr; }
 }
+
+.ticket-filter-bar {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 8px 16px; border-bottom: 1px solid var(--sky-100);
+  background: var(--gray-50);
+}
+
+.filter-select {
+  padding: 5px 10px; border-radius: 8px; font-size: 12px;
+  border: 1.5px solid var(--sky-200); background: white;
+  color: var(--gray-700); cursor: pointer; outline: none;
+}
+
+.filter-select:focus { 
+  border-color: var(--sky-400); 
+}
+
+.filter-clear-btn {
+  padding: 5px 10px; border-radius: 8px; font-size: 12px;
+  border: 1.5px solid #fca5a5; background: white;
+  color: var(--red); cursor: pointer;
+}
+
+.filter-clear-btn:hover { 
+  background: #fff7f7; 
+}

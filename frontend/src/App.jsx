@@ -193,6 +193,8 @@ function TicketModal({ ticket, onClose }) {
               ['Points',   `${ticket.storyPoints} pts`],
               ['Created',  ticket.created],
               ['Updated',  ticket.updated],
+              ['Fix Version', ticket.fixVersion || '-'],
+              ['Include Release Notes', ticket.includeReleaseNotes || 'null'],
             ].map(([k, v]) => (
               <div key={k} className="detail-item">
                 <div className="detail-key">{k}</div>
@@ -407,9 +409,12 @@ function Dashboard({ user, onLogout }) {
   const [activePage,     setActivePage]     = useState('dashboard');
   const [activeTab,      setActiveTab]      = useState('all');
   const [search,         setSearch]         = useState('');
+  const [filterVersion,  setFilterVersion]  = useState('all');
+  const [filterRnType,   setFilterRnType]   = useState('all');
   const [selectedTicket, setSelectedTicket] = useState(null);
 
   const [tickets,        setTickets]        = useState([]);
+  const [fixVersions,    setFixVersions]    = useState([]);
   const [stats,          setStats]          = useState({ total: 0, open: 0, inProgress: 0, done: 0, critical: 0, byType: {} });
   const [aiAnalysis,     setAiAnalysis]     = useState(null);
   const [loadingTickets, setLoadingTickets] = useState(true);
@@ -452,7 +457,7 @@ If there's an error (e.g., Jira offline), it sets an error message to be display
   useEffect(() => {
     fetch('/api/stats')
       .then(r => r.json())
-      .then(d => setStats(d))
+      .then(d => {setStats(d); setFixVersions(d.fixVersions || []);})
       .catch(err => console.error('Stats error:', err));
   }, []);
 
@@ -476,11 +481,13 @@ If there's an error (e.g., Jira offline), it sets an error message to be display
   //Filtering the tickets based on the active tab (e.g., all, bugs, stories) and the search query entered by the user.
   const filtered = tickets.filter(t => {
     const matchTab = activeTab === 'all' || t.type === activeTab;
+    const matchVersion = filterVersion === 'all' || t.fixVersion === filterVersion;
+    const matchRnType = filterRnType === 'all' || t.includeReleaseNotes === filterRnType;
     const q        = search.toLowerCase();
     const matchSrch = !search
       || t.title.toLowerCase().includes(q)
       || t.id.toLowerCase().includes(q);
-    return matchTab && matchSrch;
+    return matchTab && matchVersion && matchRnType && matchSrch;
   });
 
   //Calculating the count of tickets for each category (bug, story, task, other) to be displayed as badges in the navigation menu, providing users with a quick overview of the distribution of different types of tickets in their Jira project.
@@ -643,6 +650,31 @@ If there's an error (e.g., Jira offline), it sets an error message to be display
                         </button>
                       ))}
                     </div>
+
+                    {/* Fix Version + Release Note Type filters */}   
+                    <div className="ticket-filter-bar">               
+                      {fixVersions.length > 0 && (                   
+                        <select className="filter-select"             
+                          value={filterVersion} onChange={e => setFilterVersion(e.target.value)}>
+                          <option value="all">All Versions</option>
+                          {fixVersions.map(v => <option key={v} value={v}>{v}</option>)}
+                        </select>
+                      )}
+                      <select className="filter-select"
+                        value={filterRnType} onChange={e => setFilterRnType(e.target.value)}>
+                        <option value="all">All Release Note Types</option>
+                        <option value="public">🌐 Public</option>
+                        <option value="internal">🔒 Internal</option>
+                        <option value="hidden">🙈 Hidden</option>
+                        <option value="null">❓ Not Set</option>
+                      </select>
+                      {(filterVersion !== 'all' || filterRnType !== 'all') && (
+                        <button className="filter-clear-btn"
+                          onClick={() => { setFilterVersion('all'); setFilterRnType('all'); }}>
+                          ✕ Clear
+                        </button>
+                      )}
+                    </div>                        
 
                     {/* Ticket rows */}
                     <div className="ticket-list">
