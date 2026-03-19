@@ -60,9 +60,9 @@ function LoginPage({ onLogin }) {
       .then(r => r.json())
       .then(d => setDemoUsers(d.users || []))
       .catch(() => setDemoUsers([
-        { id: 'u1', email: 'nam.nguyen@datamir.com',    name: 'Nam Nguyen',    avatar: 'NN', role: 'Senior Developer' },
-        { id: 'u2', email: 'andrea.cossio@datamir.com', name: 'Andrea Cossio', avatar: 'AC', role: 'Product Manager'  },
-        { id: 'u3', email: 'josh.moyer@datamir.com',    name: 'Josh Moyer',    avatar: 'JM', role: 'QA Engineer'      },
+        { id: 'u1', email: 'nam.nguyen@dataminr.com',    name: 'Nam Nguyen',    avatar: 'NN', role: 'Senior Developer' },
+        { id: 'u2', email: 'andrea.cossio@dataminr.com', name: 'Andrea Cossio', avatar: 'AC', role: 'Product Manager'  },
+        { id: 'u3', email: 'josh.moyer@dataminr.com',    name: 'Josh Moyer',    avatar: 'JM', role: 'QA Engineer'      },
       ]));
   }, []);
 
@@ -307,13 +307,31 @@ function ReleaseNotesPage({ tickets }) {
   const renderMarkdown = (md) => {
     if (!md) return '';
     return md
-      .replace(/^### (.+)$/gm, '<h3>$1</h3>')
-      .replace(/^## (.+)$/gm,  '<h2>$1</h2>')
-      .replace(/^# (.+)$/gm,   '<h1>$1</h1>')
+      .split('\n')
+      .map(line => {
+        if (/^### (.+)$/.test(line)) {
+          return line.replace(/^### (.+)$/, '<h3>$1</h3>');
+        }
+        if (/^## (.+)$/.test(line))  {
+          return line.replace(/^## (.+)$/,  '<h2>$1</h2>');
+        }
+        if (/^# (.+)$/.test(line))   {
+          return line.replace(/^# (.+)$/,   '<h1>$1</h1>');
+        }
+        if (/^\* (.+)$/.test(line))  {
+          return line.replace(/^\* (.+)$/,  '<li>$1</li>');
+        }
+        if (/^- (.+)$/.test(line))   {
+          return line.replace(/^- (.+)$/,   '<li>$1</li>');
+        }
+        if (line.trim() === '')      {
+          return '<br/>';
+        }
+        return `<p>${line}</p>`;
+      })
+      .join('')
       .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-      .replace(/^- (.+)$/gm,   '<li>$1</li>')
-      .replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>')
-      .replace(/\n{2,}/g, '<br/><br/>');
+      .replace(/(<li>.*?<\/li>)+/gs, match => `<ul>${match}</ul>`);
   };
 
   // The component renders a two-column layout where the left side allows users to select which tickets to include in the release notes, and the right side provides configuration options and displays the generated release notes.
@@ -333,16 +351,35 @@ function ReleaseNotesPage({ tickets }) {
               {selectedIds.length === tickets.length ? 'Deselect All' : 'Select All'}
             </button>
             <div className="release-ticket-list">
-              {tickets.map(t => (
-                <label key={t.id} className={`release-ticket-item ${selectedIds.includes(t.id) ? 'selected' : ''}`}>
-                  <input type="checkbox" checked={selectedIds.includes(t.id)} onChange={() => toggleTicket(t.id)} />
-                  <span className={`ticket-type-badge small ${typeClass(t.type)}`}>{typeBadge(t.type)}</span>
-                  <div className="release-ticket-info">
-                    <span className="release-ticket-id">{t.id}</span>
-                    <span className="release-ticket-title">{t.title}</span>
-                  </div>
-                </label>
-              ))}
+              {[...tickets]
+                .sort((a, b) => {
+                  const numA = parseInt(a.id.replace(/\D/g, ''), 10);
+                  const numB = parseInt(b.id.replace(/\D/g, ''), 10);
+                  return numA - numB;
+                })
+                .map(t => {
+                  const rnColors = { public: '#dcfce7', internal: '#fef3c7', hidden: '#fee2e2', null: '#f1f5f9' };
+                  const rnText   = { public: '🌐', internal: '🔒', hidden: '🙈', null: '❓' };
+                  const rnType   = t.includeReleaseNotes || 'null';
+                  return (
+                  <label key={t.id} className={`release-ticket-item ${selectedIds.includes(t.id) ? 'selected' : ''}`}>
+                    <input type="checkbox" checked={selectedIds.includes(t.id)} onChange={() => toggleTicket(t.id)} />
+                    <span className={`ticket-type-badge small ${typeClass(t.type)}`}>{typeBadge(t.type)}</span>
+                    <div className="release-ticket-info">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <span className="release-ticket-id">{t.id}</span>
+                        <span style={{
+                          fontSize: '10px', fontWeight: '600', padding: '1px 6px',
+                          borderRadius: '20px', background: rnColors[rnType],
+                          color: '#374151', whiteSpace: 'nowrap',
+                        }}>
+                          {rnText[rnType]} {rnType}
+                        </span>
+                      </div>
+                      <span className="release-ticket-title">{t.title}</span>
+                    </div>
+                  </label>
+                );})}
             </div>
           </div>
         </div>
@@ -411,6 +448,7 @@ function Dashboard({ user, onLogout }) {
   const [search,         setSearch]         = useState('');
   const [filterVersion,  setFilterVersion]  = useState('all');
   const [filterRnType,   setFilterRnType]   = useState('all');
+  const [showAiPanel,    setShowAiPanel]    = useState(true);
   const [selectedTicket, setSelectedTicket] = useState(null);
 
   const [tickets,        setTickets]        = useState([]);
@@ -439,13 +477,26 @@ If there's an error (e.g., Jira offline), it sets an error message to be display
 
       //Second step: send raw tickets to the backend for AI categorization and enrichment, then update the tickets state with the categorized data once it is received. This allows the dashboard to display AI-generated categories and insights alongside the original ticket information.
       if (raw.length > 0) {
+        setLoadingAI(true);
         const catRes  = await fetch('/api/ai/categorize', {
           method : 'POST',
           headers: { 'Content-Type': 'application/json' },
           body   : JSON.stringify({ tickets: raw }),
         });
+        
         const catData = await catRes.json();
-        if (catData.tickets?.length) setTickets(catData.tickets);
+        const enriched = catData.tickets?.length ? catData.tickets : raw;
+        setTickets(enriched);
+ 
+        const analysisRes  = await fetch('/api/ai/analysis', {
+          method : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body   : JSON.stringify({ tickets: enriched }),
+        });
+
+        const analysisData = await analysisRes.json();
+        if (analysisData?.summary) setAiAnalysis(analysisData);
+        setLoadingAI(false);
       }
     } catch (err) {
       setJiraError(err.message);
@@ -463,20 +514,6 @@ If there's an error (e.g., Jira offline), it sets an error message to be display
 
   //Fourth step: trigger the initial load of tickets when the component mounts, ensuring that the dashboard displays the most up-to-date information from Jira as soon as the user logs in.
   useEffect(() => { loadTickets(); }, [loadTickets]);
-
-  //Fifth step: whenever the tickets state changes (e.g., after fetching from Jira or receiving AI categorization), send the updated list of tickets to the backend API for further AI analysis, and update the aiAnalysis state with the results to provide insights and recommendations based on the current set of tickets.
-  useEffect(() => {
-    if (!tickets.length) return;
-    setLoadingAI(true);
-    fetch('/api/ai/analysis', {
-      method : 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body   : JSON.stringify({ tickets }),
-    })
-      .then(r => r.json())
-      .then(d => { setAiAnalysis(d); setLoadingAI(false); })
-      .catch(() => setLoadingAI(false));
-  }, [tickets.length]); // only re-run when count changes
 
   //Filtering the tickets based on the active tab (e.g., all, bugs, stories) and the search query entered by the user.
   const filtered = tickets.filter(t => {
@@ -534,8 +571,8 @@ If there's an error (e.g., Jira offline), it sets an error message to be display
       {/* ── SIDEBAR ── */}
       <aside className="sidebar">
         <div className="sidebar-logo">
-          <img src="/dataminr_logo.webp" alt="Datamir" className="login-logo-img" />
-          <span className="sidebar-logo-text">Datamir</span>
+          <img src="/dataminr_logo.webp" alt="Dataminr" className="login-logo-img" />
+          <span className="sidebar-logo-text">Dashboard</span>
         </div>
 
         <nav className="sidebar-nav">
@@ -794,8 +831,14 @@ If there's an error (e.g., Jira offline), it sets an error message to be display
                   <div className="card">
                     <div className="card-header">
                       <span className="card-title"><span className="card-title-icon">✨</span> Gemini AI Analysis</span>
-                      <span className="ai-badge" style={{ margin: 0 }}>AI</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span className="ai-badge" style={{ margin: 0 }}>AI</span>
+                        <button className="panel-toggle-btn" onClick={() => setShowAiPanel(p => !p)}>
+                          {showAiPanel ? '▲ Hide' : '▼ Show'}
+                        </button>
+                      </div>
                     </div>
+                    {showAiPanel && (
                     <div className="card-body">
                       {loadingAI ? (
                         <div className="ai-loading">
@@ -810,7 +853,7 @@ If there's an error (e.g., Jira offline), it sets an error message to be display
                               {aiAnalysis.summary}
                             </p>
                           </div>
-
+ 
                           <div className="section-label">💡 Insights</div>
                           <div className="insight-list">
                             {(aiAnalysis.insights || []).map((ins, i) => (
@@ -822,7 +865,7 @@ If there's an error (e.g., Jira offline), it sets an error message to be display
                               </div>
                             ))}
                           </div>
-
+ 
                           <div className="section-label" style={{ marginTop: '16px' }}>🎯 Suggestions</div>
                           <div className="suggestion-list">
                             {(aiAnalysis.suggestions || []).map((s, i) => (
@@ -845,10 +888,11 @@ If there's an error (e.g., Jira offline), it sets an error message to be display
                         </div>
                       )}
                     </div>
+                    )}
                   </div>
 
                   {/* Priority breakdown */}
-                  <div className="card">
+                                    <div className="card">
                     <div className="card-header">
                       <span className="card-title"><span className="card-title-icon">🚦</span> Priority Breakdown</span>
                     </div>

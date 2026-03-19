@@ -314,11 +314,10 @@ app.post('/api/ai/categorize', async (req, res) => {
   const BATCH_SIZE = 10;
   let enriched = [...tickets];
  
-  try {
-    for (let i = 0; i < tickets.length; i += BATCH_SIZE) {
-      const batch = tickets.slice(i, i + BATCH_SIZE);
- 
-  const list = batch.map((t, j) =>
+  const batches = [];
+  for (let i = 0; i < tickets.length; i += BATCH_SIZE) {
+    const batch = tickets.slice(i, i + BATCH_SIZE);
+    const list = batch.map((t, j) =>
     `[${i + j}] ID:${t.id} | Type:${t.type} | Title:${t.title} | Desc:${(t.description || '').slice(0, 120)}` // Format each ticket as a single line with key details for the AI to analyze
   ).join('\n');
 
@@ -341,27 +340,31 @@ ${list}
 
 Respond ONLY with a valid JSON array, no extra text, no markdown.
 `;
+    batches.push(prompt);
+  }
 
 /*
 Call Gemini AI with constructed prompt and handle the response.
 If the response is successful, parse the JSON and enrich the original tickets with the AI's category and summary.
 If there's an error during the AI call or response parsing, log the error and return the original tickets without enrichment to ensure the frontend can still display them.
 */
-    const raw    = await callGemini(prompt);
-    const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim());
-
-     parsed.forEach(ai => {
-        const idx = ai.index;
-        if (enriched[idx]) {
-          enriched[idx] = {
-            ...enriched[idx],
-            type      : (ai.category || enriched[idx].type).toLowerCase(),
-            aiCategory: ai.category || null,
-            aiSummary : ai.summary  || null,
-          };
-        }
-      });
-    }
+  try {
+    const results = await Promise.all(batches.map(prompt => callGemini(prompt)));
+    
+    results.forEach(raw => {
+      const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim());
+      parsed.forEach(ai => {
+          const idx = ai.index;
+          if (enriched[idx]) {
+            enriched[idx] = {
+              ...enriched[idx],
+              type      : (ai.category || enriched[idx].type).toLowerCase(),
+              aiCategory: ai.category || null,
+              aiSummary : ai.summary  || null,
+            };
+          }
+        });
+    });
     res.json({ tickets: enriched });
   } catch (err) {
     console.error('Gemini categorise error:', err.message);
