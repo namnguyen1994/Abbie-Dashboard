@@ -147,8 +147,152 @@ It also shows error messages when login fails and provides visual feedback durin
   );
 }
 
+const EDITOR_ROLES = ['Senior Developer', 'Admin'];
+
+const DOC_FIELDS = [
+  { label: 'Docs Status',                                      key: 'docsStatus',       type: 'text'     },
+  { label: 'Docs to Change',                                   key: 'docsToChange',     type: 'text'     },
+  { label: 'Release Notes Writeup',                            key: 'rnWriteup',        type: 'textarea' },
+  { label: 'Notes',                                            key: 'notes',            type: 'textarea' },
+  { label: 'Docs Team Member',                                 key: 'docsTeamMember',   type: 'text'     },
+  { label: 'SME',                                              key: 'sme',              type: 'text'     },
+  { label: 'Review Process',                                   key: 'reviewProcess',    type: 'text'     },
+  { label: 'Are all docs changes noted?',                      key: 'docsChangesNoted', type: 'yesno'    },
+  { label: 'Is ticket added to Wrike card?',                   key: 'wrikeCardAdded',   type: 'yesno'    },
+  { label: 'Include Release Notes (Sheet)',                     key: 'includeRnSheet',   type: 'rn'       },
+  { label: 'Entered into Release Notes?',                      key: 'enteredIntoRn',    type: 'yesno'    },
+  { label: 'PLAT Number/Link Added to Internal Version?',      key: 'platLinkAdded',    type: 'yesno'    },
+];
+
+function DocsSection({ ticket, user }) {
+  const initialDocs  = ticket.docs || {};
+  const [editing,    setEditing]  = useState(false);
+  const [form,       setForm]     = useState({ ...initialDocs });
+  const [saving,     setSaving]   = useState(false);
+  const [saveMsg,    setSaveMsg]  = useState('');
+  const canEdit = EDITOR_ROLES.includes(user?.role);
+ 
+  const handleChange = (key, val) => setForm(prev => ({ ...prev, [key]: val }));
+ 
+  const handleSave = async () => {
+    setSaving(true);
+    setSaveMsg('');
+    try {
+      const res  = await fetch(`/api/metadata/${ticket.id}`, {
+        method : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body   : JSON.stringify({ ...form, role: user?.role }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Save failed');
+       try {
+        const syncRes  = await fetch('/api/sync-to-sheet', {
+          method : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body   : JSON.stringify({ ticketId: ticket.id, fields: form, role: user?.role }),
+        });
+        const syncData = await syncRes.json();
+        if (!syncRes.ok) {
+          console.error('Sync to sheet failed:', syncData.error);
+          setSaveMsg(`✅ Saved (sheet sync failed: ${syncData.error})`);
+        } else {
+          setSaveMsg('✅ Saved and synced to Google Sheet');
+        }
+      } catch (syncErr) {
+        console.error('Sync to sheet error:', syncErr.message);
+        setSaveMsg(`✅ Saved (sheet sync error: ${syncErr.message})`);
+      }
+      setEditing(false);
+    } catch (err) {
+      setSaveMsg(`⚠️ ${err.message}`);
+    }
+    setSaving(false);
+  };
+
+  const renderValue = (field) => {
+    const val = form[field.key];
+    if (editing && canEdit) {
+      if (field.type === 'textarea') {
+        return (
+          <textarea className="docs-input docs-textarea"
+            value={val || ''} onChange={e => handleChange(field.key, e.target.value)} />
+        );
+      }
+      if (field.type === 'yesno') {
+        return (
+          <select className="docs-input docs-select"
+            value={val || ''} onChange={e => handleChange(field.key, e.target.value)}>
+            <option value="">—</option>
+            <option value="Yes">Yes</option>
+            <option value="No">No</option>
+            <option value="N/A">N/A</option>
+          </select>
+        );
+      }
+      if (field.type === 'rn') {
+        return (
+          <select className="docs-input docs-select"
+            value={val || ''} onChange={e => handleChange(field.key, e.target.value)}>
+            <option value="">—</option>
+            <option value="Public">Public</option>
+            <option value="Internal">Internal</option>
+            <option value="Hidden">Hidden</option>
+          </select>
+        );
+      }
+      return (
+        <input className="docs-input"
+          value={val || ''} onChange={e => handleChange(field.key, e.target.value)} />
+      );
+    }
+    return <span className="docs-value">{val || <span style={{ color: 'var(--gray-400)' }}>—</span>}</span>;
+  };
+ 
+  return (
+    <div className="docs-section">
+      <div className="docs-section-header">
+        <span className="docs-section-title">📄 Documentation Fields</span>
+        {canEdit && !editing && (
+          <button className="btn-secondary docs-edit-btn" onClick={() => { setEditing(true); setSaveMsg(''); }}>
+            ✏️ Edit
+          </button>
+        )}
+        {editing && (
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button className="btn-secondary" onClick={() => { setEditing(false); setForm({ ...initialDocs }); setSaveMsg(''); }}>
+              Cancel
+            </button>
+            <button className="btn-primary docs-edit-btn" onClick={handleSave} disabled={saving}>
+              {saving ? '🔄 Saving…' : '💾 Save'}
+            </button>
+          </div>
+        )}
+      </div>
+ 
+      {saveMsg && (
+        <div className={`docs-save-msg ${saveMsg.startsWith('✅') ? 'success' : 'error'}`}>
+          {saveMsg}
+        </div>
+      )}
+ 
+      <div className="docs-fields-grid">
+        {DOC_FIELDS.map(field => (
+          <div key={field.key} className={`docs-field ${field.type === 'textarea' ? 'full-width' : ''}`}>
+            <div className="docs-field-label">{field.label}</div>
+            <div className="docs-field-value">{renderValue(field)}</div>
+          </div>
+        ))}
+      </div>
+ 
+      {ticket.docs?.updatedAt && (
+        <div className="docs-updated-at">Last updated: {ticket.docs.updatedAt}</div>
+      )}
+    </div>
+  );
+}
+
 // Modal component that displays detailed information about a selected ticket, including its properties, description, and AI-generated analysis.
-function TicketModal({ ticket, onClose }) {
+function TicketModal({ ticket, onClose, user }) {
   const [aiData,     setAiData]     = useState(null);
   const [loadingAI,  setLoadingAI]  = useState(true);
 
@@ -242,6 +386,8 @@ function TicketModal({ ticket, onClose }) {
               <p style={{ fontSize: '13px', color: 'var(--gray-400)' }}>AI analysis unavailable.</p>
             )}
           </div>
+
+          <DocsSection ticket={ticket} user={user} />
         </div>
       </div>
     </div>
@@ -623,6 +769,64 @@ If there's an error (e.g., Jira offline), it sets an error message to be display
                 value={search} onChange={e => setSearch(e.target.value)} />
             </div>
             <button className="icon-btn" title="Refresh" onClick={loadTickets}>↻</button>
+            {EDITOR_ROLES.includes(user?.role) && (
+              <label className="btn-import-csv" title="Import CSV">
+                📂 Import CSV
+                <input type="file" accept=".csv" style={{ display: 'none' }}
+                  onChange={async (e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    const csvContent = await file.text();
+                    try {
+                      const res  = await fetch('/api/import-csv', {
+                        method : 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body   : JSON.stringify({ csvContent, role: user?.role }),
+                      });
+                      const data = await res.json();
+                      if (res.ok) { alert(data.message); loadTickets(); }
+                      else        { alert(`❌ ${data.error}`); }
+                    } catch { alert('❌ Import failed. Check your backend.'); }
+                    e.target.value = '';
+                  }} />
+              </label>
+            )}
+            {EDITOR_ROLES.includes(user?.role) && (
+              <button className="btn-import-csv" title="Sync from Google Sheet"
+                onClick={async () => {
+                  // Fetch the currently saved Sheet URL so we can pre-fill the prompt
+                  let currentUrl = '';
+                  try {
+                    const s = await fetch('/api/sheet-settings').then(r => r.json());
+                    currentUrl = s.sheetUrl || '';
+                  } catch { /* ignore */ }
+ 
+                  // Ask the client to paste their Google Sheet URL
+                  const input = window.prompt(
+                    '📋 Paste your Google Sheet URL:\n(It will be saved for future syncs)',
+                    currentUrl
+                  );
+                  if (!input) return; // user cancelled
+ 
+                  // Save the new URL first, then sync
+                  try {
+                    const saveRes  = await fetch('/api/sheet-settings', {
+                      method : 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body   : JSON.stringify({ sheetUrl: input, role: user?.role }),
+                    });
+                    const saveData = await saveRes.json();
+                    if (!saveRes.ok) { alert(`❌ ${saveData.error}`); return; }
+ 
+                    const syncRes  = await fetch('/api/sync-from-sheet');
+                    const syncData = await syncRes.json();
+                    if (syncRes.ok) { alert(syncData.message); loadTickets(); }
+                    else            { alert(`❌ ${syncData.error}`); }
+                  } catch { alert('❌ Sync failed. Check your backend.'); }
+                }}>
+                🔄 Sync Sheet
+              </button>
+            )}
             <div className="icon-btn">🔔</div>
           </div>
         </div>
@@ -944,7 +1148,7 @@ If there's an error (e.g., Jira offline), it sets an error message to be display
       </main>
 
       {selectedTicket && (
-        <TicketModal ticket={selectedTicket} onClose={() => setSelectedTicket(null)} />
+        <TicketModal ticket={selectedTicket} onClose={() => setSelectedTicket(null)} user={user} />
       )}
     </div>
   );

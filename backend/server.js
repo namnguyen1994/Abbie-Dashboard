@@ -5,6 +5,8 @@ const axios   = require('axios');
 require('dotenv').config({ path: __dirname + '/.env' }); // Load environment variables from .env file
 console.log('ENV CHECK:', process.env.JIRA_BASE_URL, process.env.JIRA_PROJECT);
 
+const { initDB, getMetadata, getAllMetadata, upsertMetadata, getSetting, setSetting } = require('./database');
+
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -21,6 +23,8 @@ const CONFIG = {
 
 //Decleare valid values for "Include Release Notes" field in Jira Tickets
 const RELEASE_NOTE_TYPES = ['null', 'public', 'internal', 'hidden'];
+
+const EDITOR_ROLES = ['Senior Developer', 'QA Engineer']; // Roles that can edit ticket metadata fields
 
 // Sample user login information to enable quick login
 const MOCK_USERS = [
@@ -123,9 +127,6 @@ function normaliseTicket(issue) {
   const rnRaw = f['customfield_10151']?.value?.toLowerCase();
   const includeReleaseNotes = RELEASE_NOTE_TYPES.includes(rnRaw) ? rnRaw : 'null';
 
-  console.log(`[${issue.key}] customfield_10150: `, JSON.stringify(f['customfield_10150']));
-  console.log(`[${issue.key}] customfield_10151: `, JSON.stringify(f['customfield_10151']));
-
   // Return a normalized ticket object with all the necessary fields for the frontend, using safe navigation and default values where appropriate
   return {
     id          : issue.key,
@@ -147,6 +148,32 @@ function normaliseTicket(issue) {
     includeReleaseNotes,
     aiSummary   : null,
     aiCategory  : null,
+  };
+}
+
+/*
+  mergeMetadata — takes a normalised ticket and attaches its SQLite metadata row.
+  If no metadata exists yet, the docs fields are all null.
+*/
+function mergeMetadata(ticket, metaMap) {
+  const meta = metaMap.get(ticket.id) || {};
+  return {
+    ...ticket,
+    docs: {
+      docsStatus      : meta.docs_status        || null,
+      docsToChange    : meta.docs_to_change      || null,
+      rnWriteup       : meta.rn_writeup          || null,
+      notes           : meta.notes               || null,
+      docsTeamMember  : meta.docs_team_member    || null,
+      sme             : meta.sme                 || null,
+      reviewProcess   : meta.review_process      || null,
+      docsChangesNoted: meta.docs_changes_noted  || null,
+      wrikeCardAdded  : meta.wrike_card_added    || null,
+      includeRnSheet  : meta.include_rn_sheet    || null,
+      enteredIntoRn   : meta.entered_into_rn     || null,
+      platLinkAdded   : meta.plat_link_added     || null,
+      updatedAt       : meta.updated_at          || null,
+    },
   };
 }
 
@@ -231,7 +258,10 @@ If there's an error during the fetch or normalization process, it logs detailed 
 app.get('/api/tickets', async (req, res) => {
   try {
     const issues  = await fetchJiraTickets(50);
-    const tickets = issues.map(normaliseTicket);
+    let tickets = issues.map(normaliseTicket);
+    const metaMap  = getAllMetadata(); // Get all metadata from the database as a Map for efficient lookup
+
+    tickets = tickets.map(t => mergeMetadata(t, metaMap)); // Merge metadata into each ticket
 
     const {fixVersion, includeReleaseNotes} = req.query;
     if (fixVersion) {
@@ -243,9 +273,7 @@ app.get('/api/tickets', async (req, res) => {
 
     res.json({ tickets, total: tickets.length });
   } catch (err) {
-    console.error('Full error:', err.response?.data);
-    console.error('Status:', err.response?.status);
-    console.error('URL called:', err.config?.url);
+    console.error('Error fetching tickets:', err.response?.data || err.message);
     res.status(500).json({ error: err.message, tickets: [], total: 0 });
   }
 });
@@ -261,7 +289,9 @@ app.get('/api/tickets/:id', async (req, res) => {
     const response = await axios.get(`${CONFIG.JIRA_BASE_URL}/rest/api/3/issue/${req.params.id}`, { // Make a GET request to the Jira API to fetch the issue details by ID
       headers: { Authorization: `Basic ${token}`, Accept: 'application/json' },
     });
-    res.json(normaliseTicket(response.data));
+    const ticket = normaliseTicket(response.data); // Normalize the raw Jira issue data into a consistent ticket format
+    const metaMap = getAllMetadata(); // Get all metadata from the database as a Map for efficient lookup
+    res.json(mergeMetadata(ticket, metaMap));
   } catch (err) {
     const status = err.response?.status === 404 ? 404 : 500;
     res.status(status).json({ error: status === 404 ? 'Ticket not found' : err.message });
@@ -306,6 +336,43 @@ This endpoint takes a list of tickets and sends them to Gemini AI for categoriza
 It constructs a prompt that describes the task to Gemini, including the rules for categorizing tickets and a formatted list of the tickets to analyze.
 If successful, the original tickets are enriched with the AI's category and summary, and returned in the response.
 */
+
+app.get('/api/metadata/:id', (req, res) => {
+  const meta = getMetadata(req.params.id);
+  res.json(meta || {});
+});
+
+app.post('/api/metadata/:id', (req, res) => {
+  const { role, ...fields } = req.body;
+ 
+  // Role check — reject if caller is not an editor
+  if (!EDITOR_ROLES.includes(role)) {
+    return res.status(403).json({ error: 'You do not have permission to edit documentation fields.' });
+  }
+ 
+  // Map frontend field names to database column names
+  const dbFields = {};
+  if (fields.docsStatus       !== undefined) dbFields.docs_status         = fields.docsStatus;
+  if (fields.docsToChange     !== undefined) dbFields.docs_to_change      = fields.docsToChange;
+  if (fields.rnWriteup        !== undefined) dbFields.rn_writeup          = fields.rnWriteup;
+  if (fields.notes            !== undefined) dbFields.notes               = fields.notes;
+  if (fields.docsTeamMember   !== undefined) dbFields.docs_team_member    = fields.docsTeamMember;
+  if (fields.sme              !== undefined) dbFields.sme                 = fields.sme;
+  if (fields.reviewProcess    !== undefined) dbFields.review_process      = fields.reviewProcess;
+  if (fields.docsChangesNoted !== undefined) dbFields.docs_changes_noted  = fields.docsChangesNoted;
+  if (fields.wrikeCardAdded   !== undefined) dbFields.wrike_card_added    = fields.wrikeCardAdded;
+  if (fields.includeRnSheet   !== undefined) dbFields.include_rn_sheet    = fields.includeRnSheet;
+  if (fields.enteredIntoRn    !== undefined) dbFields.entered_into_rn     = fields.enteredIntoRn;
+  if (fields.platLinkAdded    !== undefined) dbFields.plat_link_added     = fields.platLinkAdded;
+ 
+  if (Object.keys(dbFields).length === 0) {
+    return res.status(400).json({ error: 'No valid fields provided.' });
+  }
+ 
+  const updated = upsertMetadata(req.params.id, dbFields);
+  res.json({ success: true, metadata: updated });
+});
+
 app.post('/api/ai/categorize', async (req, res) => {
   const { tickets } = req.body;
   if (!tickets?.length) return res.json({ tickets: [] });
@@ -555,6 +622,242 @@ Return ONLY the markdown text, no extra commentary.
   }
 });
 
+//Import CSV to Dashboard
+const COLUMN_MAP = {
+  'PLAT'                                                                          : 'ticket_id',
+  'Status'                                                                        : 'docs_status',
+  'Docs to Change'                                                                : 'docs_to_change',
+  'Release Notes Writeup'                                                         : 'rn_writeup',
+  'Notes'                                                                         : 'notes',
+  'Docs Team Member'                                                              : 'docs_team_member',
+  'SME'                                                                           : 'sme',
+  'Review Process'                                                                : 'review_process',
+  'Are all docs changes for this ticket noted in the "Docs to Change" column?'   : 'docs_changes_noted',
+  'Is this ticket added to the Wrike card for all "Docs to Change" articles?'    : 'wrike_card_added',
+  'Include Release Notes'                                                         : 'include_rn_sheet',
+  'Entered into Release Notes?'                                                   : 'entered_into_rn',
+  'PLAT Number/Link Added to Internal Version?'                                  : 'plat_link_added',
+};
+ 
+// Maps db column names back to sheet column headers for writing back to the sheet
+const REVERSE_COLUMN_MAP = Object.fromEntries(
+  Object.entries(COLUMN_MAP).map(([csv, db]) => [db, csv])
+);
+ 
+function parseCSV(raw) {
+  const lines = []; let line = []; let field = ''; let inQuote = false;
+  for (let i = 0; i < raw.length; i++) {
+    const ch = raw[i], next = raw[i + 1];
+    if (inQuote) {
+      if      (ch === '"' && next === '"') { field += '"'; i++; }
+      else if (ch === '"')                 { inQuote = false; }
+      else                                 { field += ch; }
+    } else {
+      if      (ch === '"')  { inQuote = true; }
+      else if (ch === ',')  { line.push(field); field = ''; }
+      else if (ch === '\n') { line.push(field); lines.push(line); line = []; field = ''; }
+      else if (ch === '\r') { /* skip */ }
+      else                  { field += ch; }
+    }
+  }
+  if (field || line.length) { line.push(field); lines.push(line); }
+  return lines;
+}
+ 
+// POST /api/import-csv — parses uploaded CSV and upserts into database
+app.post('/api/import-csv', (req, res) => {
+  const { csvContent, role } = req.body;
+  if (!EDITOR_ROLES.includes(role)) return res.status(403).json({ error: 'Permission denied.' });
+  if (!csvContent)                  return res.status(400).json({ error: 'No CSV content provided.' });
+  try {
+    const lines = parseCSV(csvContent);
+    if (lines.length < 2) return res.status(400).json({ error: 'CSV appears to be empty.' });
+    const headers = lines[0].map(h => h.trim());
+    let imported = 0, skipped = 0;
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i];
+      if (line.length < 2) continue;
+      const record = {};
+      headers.forEach((h, idx) => { record[h] = (line[idx] || '').trim(); });
+      if (!record['PLAT']) { skipped++; continue; }
+      const dbRow = {};
+      Object.entries(COLUMN_MAP).forEach(([csvCol, dbCol]) => {
+        if (dbCol !== 'ticket_id') dbRow[dbCol] = record[csvCol] || null;
+      });
+      upsertMetadata(record['PLAT'], dbRow);
+      imported++;
+    }
+    res.json({ success: true, imported, skipped, message: `✅ Imported ${imported} tickets (${skipped} skipped)` });
+  } catch (err) {
+    console.error('CSV import error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+const { google } = require('googleapis');
+const nodePath   = require('path');
+ 
+// Extracts the Sheet ID from a full Google Sheets URL or returns the value as-is if it's already an ID
+function extractSheetId(urlOrId) {
+  const match = urlOrId.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+  return match ? match[1] : urlOrId.trim();
+}
+ 
+// Returns the currently saved Sheet ID from the database, falling back to .env
+function getActiveSheetId() {
+  const saved = getSetting('google_sheet_id');
+  console.log('[getActiveSheetId] saved in DB:', saved);
+  console.log('[getActiveSheetId] from .env:', process.env.GOOGLE_SHEET_ID);
+  return saved || process.env.GOOGLE_SHEET_ID || null;
+}
+ 
+function getActiveSheetTab() {
+  const saved = getSetting('google_sheet_tab');
+  return saved || process.env.GOOGLE_SHEET_TAB || 'Sheet1';
+}
+ 
+function getGoogleAuth() {
+  return new google.auth.GoogleAuth({
+    keyFile: nodePath.join(__dirname, 'google-credentials.json'),
+    scopes : [
+      'https://www.googleapis.com/auth/spreadsheets',
+      'https://www.googleapis.com/auth/drive.readonly',
+    ],
+  });
+}
+ 
+// GET /api/sheet-settings — returns the currently saved Sheet URL and tab
+app.get('/api/sheet-settings', (req, res) => {
+  res.json({
+    sheetUrl: getSetting('google_sheet_url') || '',
+    sheetTab: getActiveSheetTab(),
+  });
+});
+ 
+// POST /api/sheet-settings — saves a new Sheet URL (and optional tab) to the database
+app.post('/api/sheet-settings', (req, res) => {
+  const { sheetUrl, sheetTab, role } = req.body;
+  if (!EDITOR_ROLES.includes(role)) return res.status(403).json({ error: 'Permission denied.' });
+  if (!sheetUrl)                    return res.status(400).json({ error: 'Sheet URL is required.' });
+ 
+  const sheetId = extractSheetId(sheetUrl);
+  if (!sheetId) return res.status(400).json({ error: 'Could not extract Sheet ID from URL.' });
+ 
+  setSetting('google_sheet_url', sheetUrl);
+  setSetting('google_sheet_id',  sheetId);
+  if (sheetTab) setSetting('google_sheet_tab', sheetTab);
+ 
+  res.json({ success: true, sheetId, message: '✅ Sheet URL saved successfully.' });
+});
+ 
+// GET /api/sync-from-sheet — pulls all rows from the Google Sheet into the database
+app.get('/api/sync-from-sheet', async (req, res) => {
+  const sheetId  = getActiveSheetId();
+  const sheetTab = getActiveSheetTab();
+
+  if (!sheetId) return res.status(400).json({ error: 'No Google Sheet URL configured. Click Sync Sheet to set one.' });
+ 
+  try {
+    const auth     = getGoogleAuth();
+    const sheets   = google.sheets({ version: 'v4', auth });
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: sheetId,
+      range        : sheetTab,
+    });
+ 
+    const rows = response.data.values || [];
+
+    if (rows.length < 2) return res.status(400).json({ error: 'Sheet appears to be empty.' });
+ 
+    const headers = rows[0].map(h => (h || '').trim());
+    let imported = 0, skipped = 0;
+ 
+    for (let i = 1; i < rows.length; i++) {
+      const record = {};
+      headers.forEach((h, idx) => { record[h] = (rows[i][idx] || '').trim(); });
+      if (!record['PLAT']) { skipped++; continue; }
+      const dbRow = {};
+      Object.entries(COLUMN_MAP).forEach(([csvCol, dbCol]) => {
+        if (dbCol !== 'ticket_id') dbRow[dbCol] = record[csvCol] || null;
+      });
+      upsertMetadata(record['PLAT'], dbRow);
+      imported++;
+    }
+ 
+    res.json({ success: true, imported, skipped, message: `✅ Synced ${imported} tickets from Google Sheet` });
+  } catch (err) {
+    console.error('Sync from sheet error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+ 
+// POST /api/sync-to-sheet — writes one ticket's changes back to the Google Sheet
+app.post('/api/sync-to-sheet', async (req, res) => {
+  const { ticketId, fields, role } = req.body;
+  if (!EDITOR_ROLES.includes(role)) return res.status(403).json({ error: 'Permission denied.' });
+  if (!ticketId || !fields)         return res.status(400).json({ error: 'ticketId and fields are required.' });
+ 
+  const sheetId  = getActiveSheetId();
+  const sheetTab = getActiveSheetTab();
+
+  console.log(`[sync-to-sheet] ticketId: ${ticketId}`);
+  console.log(`[sync-to-sheet] sheetId: ${sheetId}`);
+  console.log(`[sync-to-sheet] sheetTab: ${sheetTab}`);
+ 
+  if (!sheetId) return res.status(400).json({ error: 'No Google Sheet URL configured.' });
+ 
+  try {
+    const auth     = getGoogleAuth();
+    const sheets   = google.sheets({ version: 'v4', auth });
+    const response = await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: sheetTab });
+    const rows     = response.data.values || [];
+
+    console.log(`[sync-to-sheet] total rows in sheet: ${rows.length}`);
+    console.log(`[sync-to-sheet] headers: ${rows[0]?.join(', ')}`);
+
+    if (rows.length < 2) return res.status(404).json({ error: 'Sheet is empty.' });
+ 
+    const headers = rows[0].map(h => (h || '').trim());
+    const platIdx = headers.indexOf('PLAT');
+
+    console.log(`[sync-to-sheet] PLAT column index: ${platIdx}`);
+
+    if (platIdx === -1) return res.status(400).json({ error: 'PLAT column not found in sheet.' });
+ 
+    const platValues = rows.slice(1).map((row, i) => `row${i+2}:"${(row[platIdx]||'').trim()}"`);
+    console.log(`[sync-to-sheet] PLAT values:`, platValues.join(' | '));
+    console.log(`[sync-to-sheet] looking for: "${ticketId}"`);
+
+    const rowIdx  = rows.findIndex((row, i) => i > 0 && (row[platIdx] || '').trim() === ticketId);
+    if (rowIdx === -1) return res.status(404).json({ error: `${ticketId} not found in sheet.` });
+ 
+    const updatedRow = [...(rows[rowIdx] || [])];
+    Object.entries(fields).forEach(([dbCol, value]) => {
+      const sheetCol = REVERSE_COLUMN_MAP[dbCol];
+      if (!sheetCol) return;
+      const colIdx = headers.indexOf(sheetCol);
+      if (colIdx !== -1) updatedRow[colIdx] = value || '';
+    });
+ 
+    await sheets.spreadsheets.values.update({
+      spreadsheetId    : sheetId,
+      range            : `${sheetTab}!A${rowIdx + 1}`,
+      valueInputOption : 'RAW',
+      requestBody      : { values: [updatedRow] },
+    });
+ 
+    res.json({ success: true, message: `✅ ${ticketId} synced to Google Sheet` });
+  } catch (err) {
+    console.error('Sync to sheet error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 //Start the backend server on the specified port and log a message indicating the API is running and the URL to access it.
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`API running on http://localhost:${PORT}`));
+initDB().then(() => {
+  app.listen(PORT, () => console.log(`API running on http://localhost:${PORT}`));
+}).catch(err => {
+  console.error('Failed to initialise database:', err.message);
+  process.exit(1);
+});

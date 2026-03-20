@@ -834,3 +834,102 @@ button.icon-btn {
 .filter-clear-btn:hover { 
   background: #fff7f7; 
 }
+
+/* ── DOCUMENTATION FIELDS SECTION ───────── */
+.docs-section {
+  margin-top: 16px;
+  border: 1.5px solid var(--sky-200);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.docs-section-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--sky-50);
+  border-bottom: 1px solid var(--sky-200);
+}
+.docs-section-title {
+  font-size: 13px; font-weight: 700; color: var(--gray-700);
+}
+.docs-edit-btn { font-size: 12px; padding: 4px 10px; }
+ 
+.docs-fields-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+}
+.docs-field {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--sky-100);
+  border-right: 1px solid var(--sky-100);
+}
+.docs-field.full-width { grid-column: 1 / -1; }
+.docs-field:nth-child(even) { border-right: none; }
+ 
+.docs-field-label {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .5px; color: var(--gray-400); margin-bottom: 4px;
+}
+.docs-value {
+  font-size: 13px; color: var(--gray-700); line-height: 1.5;
+  white-space: pre-wrap; word-break: break-word;
+}
+ 
+/* Editable input styles */
+.docs-input {
+  width: 100%; padding: 5px 8px; font-size: 12px;
+  border: 1.5px solid var(--sky-200); border-radius: 6px;
+  background: white; color: var(--gray-800); outline: none;
+  font-family: inherit;
+}
+.docs-input:focus { border-color: var(--sky-400); }
+.docs-textarea   { min-height: 70px; resize: vertical; }
+.docs-select     { cursor: pointer; }
+ 
+.docs-save-msg {
+  padding: 6px 14px; font-size: 12px; font-weight: 600;
+}
+.docs-save-msg.success { background: #f0fdf4; color: #16a34a; }
+.docs-save-msg.error   { background: #fff7f7; color: var(--red); }
+ 
+.docs-updated-at {
+  padding: 6px 14px; font-size: 11px; color: var(--gray-400);
+  border-top: 1px solid var(--sky-100); background: var(--gray-50);
+}
+ 
+/* ── TICKET FILTER BAR ── */
+.ticket-filter-bar {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 8px 16px; border-bottom: 1px solid var(--sky-100);
+  background: var(--gray-50);
+}
+.filter-select {
+  padding: 5px 10px; border-radius: 8px; font-size: 12px;
+  border: 1.5px solid var(--sky-200); background: white;
+  color: var(--gray-700); cursor: pointer; outline: none;
+}
+.filter-select:focus { border-color: var(--sky-400); }
+.filter-clear-btn {
+  padding: 5px 10px; border-radius: 8px; font-size: 12px;
+  border: 1.5px solid #fca5a5; background: white;
+  color: var(--red); cursor: pointer;
+}
+.filter-clear-btn:hover { background: #fff7f7; }
+ 
+/* ── PANEL TOGGLE BUTTON ── */
+.panel-toggle-btn {
+  padding: 3px 10px; border-radius: 8px; font-size: 11px; font-weight: 600;
+  border: 1.5px solid var(--sky-200); background: white;
+  color: var(--sky-600); cursor: pointer;
+}
+.panel-toggle-btn:hover { background: var(--sky-50); border-color: var(--sky-400); }
+
+/* ── IMPORT CSV / SYNC SHEET BUTTON ── */
+.btn-import-csv {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 600;
+  border: 1.5px solid var(--sky-200); background: white;
+  color: var(--sky-700); cursor: pointer; white-space: nowrap;
+  transition: background .15s, border-color .15s;
+}
+.btn-import-csv:hover { background: var(--sky-50); border-color: var(--sky-400); }

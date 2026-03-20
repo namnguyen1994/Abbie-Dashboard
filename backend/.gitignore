@@ -1,2 +1,5 @@
 .env 
 node_modules 
+metadata.db
+sheet.csv
+google-credentials.json
