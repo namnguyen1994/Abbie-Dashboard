@@ -933,3 +933,32 @@ button.icon-btn {
   transition: background .15s, border-color .15s;
 }
 .btn-import-csv:hover { background: var(--sky-50); border-color: var(--sky-400); }
+
+/* ACTIVITY LOG Design and Style */
+.activity-log-table {
+  display: flex; flex-direction: column;
+  font-size: 12px;
+}
+.activity-log-header {
+  display: grid;
+  grid-template-columns: 140px 180px 130px 150px 80px 1fr 120px;
+  gap: 8px; padding: 8px 16px;
+  background: var(--gray-50); border-bottom: 1.5px solid var(--sky-100);
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .5px; color: var(--gray-400);
+}
+.activity-log-row {
+  display: grid;
+  grid-template-columns: 140px 180px 130px 150px 80px 1fr 120px;
+  gap: 8px; padding: 10px 16px;
+  border-bottom: 1px solid var(--sky-50);
+  align-items: start;
+}
+.activity-log-row:hover { background: var(--sky-50); }
+.log-timestamp { color: var(--gray-400); font-family: 'DM Mono', monospace; font-size: 11px; }
+.log-email     { color: var(--gray-700); font-weight: 500; word-break: break-all; }
+.log-role      { color: var(--gray-500); }
+.log-action    { font-size: 11px; }
+.log-ticket    { font-family: 'DM Mono', monospace; color: var(--sky-600); font-size: 11px; }
+.log-details   { color: var(--gray-600); line-height: 1.4; }
+.log-ip        { color: var(--gray-400); font-family: 'DM Mono', monospace; font-size: 11px; }

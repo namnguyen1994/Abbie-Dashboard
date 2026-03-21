@@ -181,7 +181,7 @@ function DocsSection({ ticket, user }) {
       const res  = await fetch(`/api/metadata/${ticket.id}`, {
         method : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body   : JSON.stringify({ ...form, role: user?.role }),
+        body   : JSON.stringify({ ...form, role: user?.role, userEmail: user?.email }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Save failed');
@@ -190,7 +190,7 @@ function DocsSection({ ticket, user }) {
         const syncRes  = await fetch('/api/sync-to-sheet', {
           method : 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body   : JSON.stringify({ ticketId: ticket.id, fields: form, role: user?.role }),
+          body   : JSON.stringify({ ticketId: ticket.id, fields: form, role: user?.role, userEmail: user?.email }),
         });
         const syncData = await syncRes.json();
         if (!syncRes.ok) {
@@ -585,6 +585,101 @@ function ReleaseNotesPage({ tickets }) {
   );
 }
 
+// Activity log action labels and colors for display
+const ACTION_LABELS = {
+  LOGIN_SUCCESS           : { label: '✅ Login',            color: '#22c55e' },
+  LOGIN_FAILED            : { label: '❌ Login Failed',     color: '#ef4444' },
+  LOGOUT                  : { label: '👋 Logout',           color: '#64748b' },
+  FIELD_EDIT              : { label: '✏️ Field Edit',        color: '#0ea5e9' },
+  CSV_IMPORT              : { label: '📂 CSV Import',        color: '#8b5cf6' },
+  CSV_IMPORT_FAILURE      : { label: '❌ CSV Import Failed', color: '#ef4444' },
+  SHEET_SYNC_IN           : { label: '🔄 Sheet Sync In',    color: '#f59e0b' },
+  SHEET_SYNC_OUT          : { label: '🔄 Sheet Sync Out',   color: '#f59e0b' },
+  RELEASE_NOTES_GENERATED : { label: '📋 Release Notes',    color: '#0284c7' },
+  PERMISSION_DENIED       : { label: '🚫 Access Denied',    color: '#ef4444' },
+};
+
+/*
+  ActivityLogPage — shows recent user activity for security auditing.
+  Only visible to Senior Developer, and QA Engineer roles.
+*/
+function ActivityLogPage({ user }) {
+  const [logs,    setLogs]    = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error,   setError]   = useState('');
+  const [filter,  setFilter]  = useState('all');
+ 
+  useEffect(() => {
+    fetch(`/api/activity-log?role=${encodeURIComponent(user?.role)}`)
+      .then(r => r.json())
+      .then(d => { setLogs(d.logs || []); setLoading(false); })
+      .catch(() => { setError('Failed to load activity log.'); setLoading(false); });
+  }, [user?.role]);
+ 
+  const filteredLogs = filter === 'all' ? logs : logs.filter(l => l.action === filter);
+ 
+  return (
+    <div className="release-page fade-in">
+      <div className="card">
+        <div className="card-header">
+          <span className="card-title">🔐 Activity Log</span>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <select className="filter-select" value={filter} onChange={e => setFilter(e.target.value)}>
+              <option value="all">All Actions</option>
+              {Object.entries(ACTION_LABELS).map(([key, { label }]) => (
+                <option key={key} value={key}>{label}</option>
+              ))}
+            </select>
+            <span style={{ fontSize: '12px', color: 'var(--gray-400)' }}>
+              {filteredLogs.length} entries
+            </span>
+          </div>
+        </div>
+        <div className="card-body" style={{ padding: 0 }}>
+          {loading ? (
+            <div className="ai-loading" style={{ padding: '40px', justifyContent: 'center' }}>
+              <span className="loading-spinner"></span>
+              <span style={{ color: 'var(--sky-600)' }}>Loading activity log…</span>
+            </div>
+          ) : error ? (
+            <div className="empty-state"><div className="empty-state-icon">⚠️</div><div className="empty-state-text">{error}</div></div>
+          ) : filteredLogs.length === 0 ? (
+            <div className="empty-state"><div className="empty-state-icon">🔐</div><div className="empty-state-text">No activity recorded yet.</div></div>
+          ) : (
+            <div className="activity-log-table">
+              <div className="activity-log-header">
+                <span>Timestamp</span>
+                <span>User</span>
+                <span>Role</span>
+                <span>Action</span>
+                <span>Ticket</span>
+                <span>Details</span>
+                <span>IP</span>
+              </div>
+              {filteredLogs.map((log, i) => {
+                const actionMeta = ACTION_LABELS[log.action] || { label: log.action, color: '#94a3b8' };
+                return (
+                  <div key={i} className="activity-log-row">
+                    <span className="log-timestamp">{log.timestamp}</span>
+                    <span className="log-email">{log.user_email}</span>
+                    <span className="log-role">{log.user_role}</span>
+                    <span className="log-action" style={{ color: actionMeta.color, fontWeight: 600 }}>
+                      {actionMeta.label}
+                    </span>
+                    <span className="log-ticket">{log.ticket_id || '—'}</span>
+                    <span className="log-details">{log.details || '—'}</span>
+                    <span className="log-ip">{log.ip_address || '—'}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /*
 Dashboard component that serves as the main interface for users after logging in, displaying an overview of tickets, statistics, and providing navigation to different sections of the dashboard. 
 It also handles fetching tickets from the backend, sending them for AI analysis, and managing the state of the application.
@@ -693,6 +788,11 @@ If there's an error (e.g., Jira offline), it sets an error message to be display
     { id: 'tasks',         icon: '✅', label: 'Tasks',       badge: catCounts.task   },
     { id: 'other',         icon: '📦', label: 'Other' },
     { id: 'release-notes', icon: '📋', label: 'Release Notes' },
+    
+    // Activity Log — only visible to Senior Developer and QA Engineer
+    ...(['Senior Developer', 'QA Engineer'].includes(user?.role)
+      ? [{ id: 'activity-log', icon: '🔐', label: 'Activity Log' }]
+      : []),
   ];
 
   const handleNav = (id) => {
@@ -711,6 +811,7 @@ If there's an error (e.g., Jira offline), it sets an error message to be display
     tasks        : '✅ Tasks',
     other        : '📦 Other Tickets',
     'release-notes': '📋 Release Notes',
+    'activity-log' : '🔐 Activity Log'
   }[activePage] || '📊 Dashboard';
 
   return (
@@ -751,10 +852,17 @@ If there's an error (e.g., Jira offline), it sets an error message to be display
               <div className="user-role">{user.role}</div>
             </div>
           </div>
-          <button className="btn-logout" onClick={onLogout}>Sign out</button>
+          <button className="btn-logout" onClick={async () => {
+            await fetch('/api/auth/logout', {
+              method : 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body   : JSON.stringify({ userEmail: user?.email, userRole: user?.role }),
+            });
+            onLogout();
+          }}>Sign out</button>
         </div>
       </aside>
-
+      
       {/* Main content status and style */}
       <main className="main">
         {/* Top bar */}
@@ -782,7 +890,7 @@ If there's an error (e.g., Jira offline), it sets an error message to be display
                       const res  = await fetch('/api/import-csv', {
                         method : 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body   : JSON.stringify({ csvContent, role: user?.role }),
+                        body   : JSON.stringify({ csvContent, role: user?.role, userEmail: user?.email}),
                       });
                       const data = await res.json();
                       if (res.ok) { alert(data.message); loadTickets(); }
@@ -819,7 +927,7 @@ If there's an error (e.g., Jira offline), it sets an error message to be display
                     const saveData = await saveRes.json();
                     if (!saveRes.ok) { alert(`❌ ${saveData.error}`); return; }
  
-                    const syncRes  = await fetch('/api/sync-from-sheet');
+                    const syncRes  = await fetch(`/api/sync-from-sheet?userEmail=${encodeURIComponent(user?.email)}&userRole=${encodeURIComponent(user?.role)}`);
                     const syncData = await syncRes.json();
                     if (syncRes.ok) { alert(syncData.message); loadTickets(); }
                     else            { alert(`❌ ${syncData.error}`); }
@@ -837,6 +945,8 @@ If there's an error (e.g., Jira offline), it sets an error message to be display
           {/* Release Note Page */}
           {activePage === 'release-notes' ? (
             <ReleaseNotesPage tickets={tickets} />
+          ) :  activePage === 'activity-log' ? (
+            <ActivityLogPage user = {user} />
           ) : (
             <>
               {/* Stat Card */}

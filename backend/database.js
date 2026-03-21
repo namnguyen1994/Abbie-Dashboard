@@ -53,6 +53,20 @@ async function initDB() {
     )
   `);
 
+  //Setting up table to log user activity for auditing and debugging purposes
+  db.run(`
+    CREATE TABLE IF NOT EXISTS activity_log (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      timestamp  TEXT,
+      user_email TEXT,
+      user_role  TEXT,
+      action     TEXT,
+      ticket_id  TEXT,
+      details    TEXT,
+      ip_address TEXT
+    )
+  `);
+
   saveToDisk();
   console.log('✅ Database ready:', DB_PATH);
 }
@@ -104,21 +118,6 @@ function upsertMetadata(ticketId, fields) {
   saveToDisk();
   return getMetadata(ticketId);
 }
- 
-// Bulk insert used by importSheet.js for the initial CSV load
-function bulkInsert(rows) {
-  const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
-  rows.forEach(row => {
-    const all  = { ...row, updated_at: now };
-    const cols = Object.keys(all).join(', ');
-    const ph   = Object.keys(all).map(() => '?').join(', ');
-    db.run(
-      `INSERT OR REPLACE INTO ticket_metadata (${cols}) VALUES (${ph})`,
-      Object.values(all)
-    );
-  });
-  saveToDisk();
-}
 
 function getSetting(key) {
   const rows = rowsToObjects(db.exec('SELECT value FROM app_settings WHERE key = ?', [key]));
@@ -136,5 +135,23 @@ function setSetting(key, value) {
   }
   saveToDisk();
 }
+
+// Logs a user action for security auditing
+function logActivity(userEmail, userRole, action, ticketId, details, ip) {
+  const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
+  db.run(
+    `INSERT INTO activity_log (timestamp, user_email, user_role, action, ticket_id, details, ip_address)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [now, userEmail || 'unknown', userRole || 'unknown', action, ticketId || null, details || null, ip || null]
+  );
+  saveToDisk();
+}
  
-module.exports = { initDB, getMetadata, getAllMetadata, upsertMetadata, bulkInsert, getSetting, setSetting };
+// Returns the most recent activity log entries, newest first
+function getActivityLog(limit = 200) {
+  return rowsToObjects(
+    db.exec(`SELECT * FROM activity_log ORDER BY timestamp DESC LIMIT ${limit}`)
+  );
+}
+ 
+module.exports = { initDB, getMetadata, getAllMetadata, upsertMetadata, getSetting, setSetting, logActivity, getActivityLog };

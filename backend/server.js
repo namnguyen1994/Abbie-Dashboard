@@ -5,7 +5,7 @@ const axios   = require('axios');
 require('dotenv').config({ path: __dirname + '/.env' }); // Load environment variables from .env file
 console.log('ENV CHECK:', process.env.JIRA_BASE_URL, process.env.JIRA_PROJECT);
 
-const { initDB, getMetadata, getAllMetadata, upsertMetadata, getSetting, setSetting } = require('./database');
+const { initDB, getMetadata, getAllMetadata, upsertMetadata, getSetting, setSetting, logActivity, getActivityLog } = require('./database');
 
 const app = express();
 app.use(cors());
@@ -242,14 +242,24 @@ If not, it responds with a 401 Unauthorized status and an error message.
 */
 app.post('/api/auth/login', (req, res) => {
   const { email, password } = req.body;
+  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress; // Get the user's IP address for logging purposes
   const user = MOCK_USERS.find(u => u.email === email && u.password === password);
-  if (!user) return res.status(401).json({ error: 'Invalid credentials.' });
+  if (!user) {
+    logActivity(email, 'unknown', 'LOGIN_FAILED', null, 'Failed login attempt', ip);
+    return res.status(401).json({ error: 'Invalid credentials.' });
+  }
   const { password: _, ...safeUser } = user; // Exclude password from the user object before sending it back
+  logActivity(user.email, user.role, 'LOGIN_SUCCESS', null, 'User logged in successfully', ip);
   res.json({ token: `token-${user.id}`, user: safeUser });// Return user info without password for security reasons
 });
 
 //This endpoint simulates user logout by simply returning a success message.
-app.post('/api/auth/logout', (req, res) => res.json({ message: 'Logged out successfully' }));
+app.post('/api/auth/logout', (req, res) => {
+  const { userEmail, userRole } = req.body;
+  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress; // Get the user's IP address for logging purposes
+  logActivity(userEmail, userRole, 'LOGOUT', null, 'User logged out', ip);
+  res.json({ message: 'Logged out successfully' });
+});
 
 /*
 Get all tickets: This endpoint fetches Jira tickets using the fetchJiraTickets function, normalizes them with the normaliseTicket function, and returns the list of tickets along with the total count.
@@ -343,10 +353,12 @@ app.get('/api/metadata/:id', (req, res) => {
 });
 
 app.post('/api/metadata/:id', (req, res) => {
-  const { role, ...fields } = req.body;
+  const { role, userEmail, ...fields } = req.body;
+  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress; // Get the user's IP address for logging purposes
 
   // Role check — reject if caller is not an editor
   if (!EDITOR_ROLES.includes(role)) {
+    logActivity(userEmail, role, 'PERMISSION_DENIED', req.params.id, 'Attempted to edit documentation fields without permission', ip);
     return res.status(403).json({ error: 'You do not have permission to edit documentation fields.' });
   }
  
@@ -370,6 +382,7 @@ app.post('/api/metadata/:id', (req, res) => {
   }
  
   const updated = upsertMetadata(req.params.id, dbFields);
+  logActivity(userEmail, role, 'FIELD_EDIT', req.params.id, `Edited metadata fields: ${Object.keys(dbFields).join(', ')}`, ip);
   res.json({ success: true, metadata: updated });
 });
 
@@ -546,7 +559,8 @@ Respond ONLY with valid JSON, no markdown.
 
 //This endpoint generates professional release notes in markdown format based on a list of tickets, the release version, and an optional knowledge base URL for tone and terminology reference.
 app.post('/api/ai/release-notes', async (req, res) => {
-  const { tickets, version, kbUrl } = req.body;
+  const { tickets, version, kbUrl, userEmail, userRole } = req.body;
+  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress; // Get the user's IP address for logging purposes
   if (!tickets?.length) return res.status(400).json({ error: 'No tickets provided' });
 
   const kbSource = kbUrl || CONFIG.KB_URL;
@@ -615,6 +629,7 @@ Return ONLY the markdown text, no extra commentary.
 
   try {
     const notes = await callGemini(prompt);
+    logActivity(userEmail, userRole, 'RELEASE_NOTES_GENERATED', null, `Generated release notes for version ${version || 'v1.0'} with ${tickets.length} tickets`, ip);
     res.json({ releaseNotes: notes });
   } catch (err) {
     console.error('Release notes error:', err.message);
@@ -666,9 +681,17 @@ function parseCSV(raw) {
  
 // POST /api/import-csv — parses uploaded CSV and upserts into database
 app.post('/api/import-csv', (req, res) => {
-  const { csvContent, role } = req.body;
-  if (!EDITOR_ROLES.includes(role)) return res.status(403).json({ error: 'Permission denied.' });
-  if (!csvContent)                  return res.status(400).json({ error: 'No CSV content provided.' });
+  const { csvContent, role, userEmail } = req.body;
+  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress; // Get the user's IP address for logging purposes
+
+  if (!EDITOR_ROLES.includes(role)){
+    logActivity(userEmail, role, 'PERMISSION_DENIED', null, 'Attempted to import CSV without permission', ip);
+    return res.status(403).json({ error: 'Permission denied.' });
+  }
+  if (!csvContent) {
+    return res.status(400).json({ error: 'No CSV content provided.' });
+  }
+
   try {
     const lines = parseCSV(csvContent);
     if (lines.length < 2) return res.status(400).json({ error: 'CSV appears to be empty.' });
@@ -687,15 +710,18 @@ app.post('/api/import-csv', (req, res) => {
       upsertMetadata(record['PLAT'], dbRow);
       imported++;
     }
+    logActivity(userEmail, role, 'CSV_IMPORT', null, `Imported ${imported} tickets from CSV, (${skipped} skipped)`, ip);
     res.json({ success: true, imported, skipped, message: `✅ Imported ${imported} tickets (${skipped} skipped)` });
   } catch (err) {
     console.error('CSV import error:', err.message);
+    logActivity(userEmail, role, 'CSV_IMPORT_FAILURE', null, err.message, ip);
     res.status(500).json({ error: err.message });
   }
 });
 
 const { google } = require('googleapis');
 const nodePath   = require('path');
+const { log } = require('console');
  
 // Extracts the Sheet ID from a full Google Sheets URL or returns the value as-is if it's already an ID
 function extractSheetId(urlOrId) {
@@ -736,7 +762,7 @@ app.get('/api/sheet-settings', (req, res) => {
 app.post('/api/sheet-settings', (req, res) => {
   const { sheetUrl, sheetTab, role } = req.body;
   if (!EDITOR_ROLES.includes(role)) return res.status(403).json({ error: 'Permission denied.' });
-  if (!sheetUrl)                    return res.status(400).json({ error: 'Sheet URL is required.' });
+  if (!sheetUrl) return res.status(400).json({ error: 'Sheet URL is required.' });
  
   const sheetId = extractSheetId(sheetUrl);
   if (!sheetId) return res.status(400).json({ error: 'Could not extract Sheet ID from URL.' });
@@ -752,6 +778,9 @@ app.post('/api/sheet-settings', (req, res) => {
 app.get('/api/sync-from-sheet', async (req, res) => {
   const sheetId  = getActiveSheetId();
   const sheetTab = getActiveSheetTab();
+  const userEmail = req.query.userEmail || 'unknown';
+  const userRole = req.query.userRole || 'unknown';
+  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
 
   if (!sheetId) return res.status(400).json({ error: 'No Google Sheet URL configured. Click Sync Sheet to set one.' });
  
@@ -781,7 +810,8 @@ app.get('/api/sync-from-sheet', async (req, res) => {
       upsertMetadata(record['PLAT'], dbRow);
       imported++;
     }
- 
+    
+    logActivity(userEmail, userRole, 'SHEET_SYNC_IN', null, `Synced ${imported} tickets from Google Sheet (${skipped} skipped)`, ip);
     res.json({ success: true, imported, skipped, message: `✅ Synced ${imported} tickets from Google Sheet` });
   } catch (err) {
     console.error('Sync from sheet error:', err.message);
@@ -791,10 +821,18 @@ app.get('/api/sync-from-sheet', async (req, res) => {
  
 // POST /api/sync-to-sheet — writes one ticket's changes back to the Google Sheet
 app.post('/api/sync-to-sheet', async (req, res) => {
-  const { ticketId, fields, role } = req.body;
-  if (!EDITOR_ROLES.includes(role)) return res.status(403).json({ error: 'Permission denied.' });
-  if (!ticketId || !fields)         return res.status(400).json({ error: 'ticketId and fields are required.' });
- 
+  const { ticketId, fields, role, userEmail } = req.body;
+  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+
+  if (!EDITOR_ROLES.includes(role)){
+    logActivity(userEmail, role, 'PERMISSION_DENIED', null, 'Attempted to sync ticket to Google Sheet without permission', ip);
+    return res.status(403).json({ error: 'Permission denied.' });
+  }
+
+  if (!ticketId || !fields) {
+    return res.status(400).json({ error: 'ticketId and fields are required.' });
+  }
+
   const sheetId  = getActiveSheetId();
   const sheetTab = getActiveSheetTab();
  
@@ -837,11 +875,23 @@ app.post('/api/sync-to-sheet', async (req, res) => {
       requestBody      : { values: [updatedRow] },
     });
  
+    logActivity(userEmail, role, 'SHEET_SYNC_OUT', ticketId, `Synced fields to Google Sheet row ${rowIdx + 1}`, ip);
     res.json({ success: true, message: `✅ ${ticketId} synced to Google Sheet` });
   } catch (err) {
     console.error('Sync to sheet error:', err.message);
     res.status(500).json({ error: err.message });
   }
+});
+
+// GET /api/activity-log — returns recent activity for Senior Developer and QA Engineer
+app.get('/api/activity-log', (req, res) => {
+  const { role } = req.query;
+  const VIEWER_ROLES = ['Senior Developer', 'QA Engineer'];
+  if (!VIEWER_ROLES.includes(role)) {
+    return res.status(403).json({ error: 'Permission denied.' });
+  }
+  const logs = getActivityLog(200);
+  res.json({ logs });
 });
 
 //Start the backend server on the specified port and log a message indicating the API is running and the URL to access it.
