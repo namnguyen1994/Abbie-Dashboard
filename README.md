@@ -42,24 +42,24 @@ Project Structure
 
     Abby Dashboard/
     │
-├── backend/
-│   ├── server.js           
-│   ├── database.js         
-│   ├── metadata.db        
-│   ├── google-credentials.json  
-│   ├── .env                
-│   ├── .gitignore
-│   └── package.json
-│
-└── frontend/
-    ├── public/
-    │   └── dataminr_logo.webp
-    ├── src/
-    │   ├── App.css
-    │   ├── App.jsx
-    │   └── main.jsx
-    ├── index.html
-    └── package.json
+    ├── backend/
+    │   ├── server.js           
+    │   ├── database.js         
+    │   ├── metadata.db        
+    │   ├── google-credentials.json  
+    │   ├── .env                
+    │   ├── .gitignore
+    │   └── package.json
+    │
+    └── frontend/
+        ├── public/
+        │   └── dataminr_logo.webp
+        ├── src/
+        │   ├── App.css
+        │   ├── App.jsx
+        │   └── main.jsx
+        ├── index.html
+        └── package.json
 
 To Getting Started, please ensure the following prerequisites are met:
 
