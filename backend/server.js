@@ -344,9 +344,6 @@ app.get('/api/metadata/:id', (req, res) => {
 
 app.post('/api/metadata/:id', (req, res) => {
   const { role, ...fields } = req.body;
- 
-  console.log(`[metadata POST] ticket: ${req.params.id}, role: ${role}`);
-  console.log(`[metadata POST] fields received:`, JSON.stringify(fields));
 
   // Role check — reject if caller is not an editor
   if (!EDITOR_ROLES.includes(role)) {
@@ -367,15 +364,12 @@ app.post('/api/metadata/:id', (req, res) => {
   if (fields.includeRnSheet   !== undefined) dbFields.include_rn_sheet    = fields.includeRnSheet;
   if (fields.enteredIntoRn    !== undefined) dbFields.entered_into_rn     = fields.enteredIntoRn;
   if (fields.platLinkAdded    !== undefined) dbFields.plat_link_added     = fields.platLinkAdded;
- 
-  console.log(`[metadata POST] mapped DB fields:`, JSON.stringify(dbFields));
 
   if (Object.keys(dbFields).length === 0) {
     return res.status(400).json({ error: 'No valid fields provided.' });
   }
  
   const updated = upsertMetadata(req.params.id, dbFields);
-  console.log(`[metadata POST] saved result:`, JSON.stringify(updated));
   res.json({ success: true, metadata: updated });
 });
 
@@ -712,8 +706,6 @@ function extractSheetId(urlOrId) {
 // Returns the currently saved Sheet ID from the database, falling back to .env
 function getActiveSheetId() {
   const saved = getSetting('google_sheet_id');
-  console.log('[getActiveSheetId] saved in DB:', saved);
-  console.log('[getActiveSheetId] from .env:', process.env.GOOGLE_SHEET_ID);
   return saved || process.env.GOOGLE_SHEET_ID || null;
 }
  
@@ -805,10 +797,6 @@ app.post('/api/sync-to-sheet', async (req, res) => {
  
   const sheetId  = getActiveSheetId();
   const sheetTab = getActiveSheetTab();
-
-  console.log(`[sync-to-sheet] ticketId: ${ticketId}`);
-  console.log(`[sync-to-sheet] sheetId: ${sheetId}`);
-  console.log(`[sync-to-sheet] sheetTab: ${sheetTab}`);
  
   if (!sheetId) return res.status(400).json({ error: 'No Google Sheet URL configured.' });
  
@@ -818,24 +806,14 @@ app.post('/api/sync-to-sheet', async (req, res) => {
     const response = await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: sheetTab });
     const rows     = response.data.values || [];
 
-    console.log(`[sync-to-sheet] total rows in sheet: ${rows.length}`);
-    console.log(`[sync-to-sheet] headers: ${rows[0]?.join(', ')}`);
-
     if (rows.length < 2) return res.status(404).json({ error: 'Sheet is empty.' });
  
     const headers = rows[0].map(h => (h || '').trim());
     const platIdx = headers.indexOf('PLAT');
 
-    console.log(`[sync-to-sheet] PLAT column index: ${platIdx}`);
-
     if (platIdx === -1) return res.status(400).json({ error: 'PLAT column not found in sheet.' });
- 
-    const platValues = rows.slice(1).map((row, i) => `row${i+2}:"${(row[platIdx]||'').trim()}"`);
-    console.log(`[sync-to-sheet] PLAT values:`, platValues.join(' | '));
-    console.log(`[sync-to-sheet] looking for: "${ticketId}"`);
 
-     const rowIdx = rows.findIndex((row, i) => i > 0 && (row[platIdx] || '').trim() === ticketId);
-    console.log(`[sync-to-sheet] matching row index: ${rowIdx}`);
+    const rowIdx = rows.findIndex((row, i) => i > 0 && (row[platIdx] || '').trim() === ticketId);
     if (rowIdx === -1) return res.status(404).json({ error: `${ticketId} not found in sheet.` });
  
     const updatedRow = [...(rows[rowIdx] || [])];
@@ -849,7 +827,6 @@ app.post('/api/sync-to-sheet', async (req, res) => {
       const sheetCol = REVERSE_COLUMN_MAP[snakeKey];
       if (!sheetCol) return;
       const colIdx = headers.indexOf(sheetCol);
-      console.log(`[sync-to-sheet] ${key} → ${snakeKey} → "${sheetCol}" col:${colIdx} = "${value}"`);
       if (colIdx !== -1) updatedRow[colIdx] = value || '';
     });
  
@@ -860,7 +837,6 @@ app.post('/api/sync-to-sheet', async (req, res) => {
       requestBody      : { values: [updatedRow] },
     });
  
-    console.log(`[sync-to-sheet] ✅ row ${rowIdx + 1} updated in Google Sheet`);
     res.json({ success: true, message: `✅ ${ticketId} synced to Google Sheet` });
   } catch (err) {
     console.error('Sync to sheet error:', err.message);
