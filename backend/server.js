@@ -345,6 +345,9 @@ app.get('/api/metadata/:id', (req, res) => {
 app.post('/api/metadata/:id', (req, res) => {
   const { role, ...fields } = req.body;
  
+  console.log(`[metadata POST] ticket: ${req.params.id}, role: ${role}`);
+  console.log(`[metadata POST] fields received:`, JSON.stringify(fields));
+
   // Role check — reject if caller is not an editor
   if (!EDITOR_ROLES.includes(role)) {
     return res.status(403).json({ error: 'You do not have permission to edit documentation fields.' });
@@ -365,11 +368,14 @@ app.post('/api/metadata/:id', (req, res) => {
   if (fields.enteredIntoRn    !== undefined) dbFields.entered_into_rn     = fields.enteredIntoRn;
   if (fields.platLinkAdded    !== undefined) dbFields.plat_link_added     = fields.platLinkAdded;
  
+  console.log(`[metadata POST] mapped DB fields:`, JSON.stringify(dbFields));
+
   if (Object.keys(dbFields).length === 0) {
     return res.status(400).json({ error: 'No valid fields provided.' });
   }
  
   const updated = upsertMetadata(req.params.id, dbFields);
+  console.log(`[metadata POST] saved result:`, JSON.stringify(updated));
   res.json({ success: true, metadata: updated });
 });
 
@@ -828,14 +834,22 @@ app.post('/api/sync-to-sheet', async (req, res) => {
     console.log(`[sync-to-sheet] PLAT values:`, platValues.join(' | '));
     console.log(`[sync-to-sheet] looking for: "${ticketId}"`);
 
-    const rowIdx  = rows.findIndex((row, i) => i > 0 && (row[platIdx] || '').trim() === ticketId);
+     const rowIdx = rows.findIndex((row, i) => i > 0 && (row[platIdx] || '').trim() === ticketId);
+    console.log(`[sync-to-sheet] matching row index: ${rowIdx}`);
     if (rowIdx === -1) return res.status(404).json({ error: `${ticketId} not found in sheet.` });
  
     const updatedRow = [...(rows[rowIdx] || [])];
-    Object.entries(fields).forEach(([dbCol, value]) => {
-      const sheetCol = REVERSE_COLUMN_MAP[dbCol];
+ 
+    // Fields come in as camelCase (docsStatus) — convert to snake_case (docs_status)
+    // so REVERSE_COLUMN_MAP can find the matching sheet column header
+    const camelToSnake = str => str.replace(/[A-Z]/g, c => `_${c.toLowerCase()}`);
+ 
+    Object.entries(fields).forEach(([key, value]) => {
+      const snakeKey = camelToSnake(key);
+      const sheetCol = REVERSE_COLUMN_MAP[snakeKey];
       if (!sheetCol) return;
       const colIdx = headers.indexOf(sheetCol);
+      console.log(`[sync-to-sheet] ${key} → ${snakeKey} → "${sheetCol}" col:${colIdx} = "${value}"`);
       if (colIdx !== -1) updatedRow[colIdx] = value || '';
     });
  
@@ -846,6 +860,7 @@ app.post('/api/sync-to-sheet', async (req, res) => {
       requestBody      : { values: [updatedRow] },
     });
  
+    console.log(`[sync-to-sheet] ✅ row ${rowIdx + 1} updated in Google Sheet`);
     res.json({ success: true, message: `✅ ${ticketId} synced to Google Sheet` });
   } catch (err) {
     console.error('Sync to sheet error:', err.message);

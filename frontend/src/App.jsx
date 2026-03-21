@@ -178,14 +178,17 @@ function DocsSection({ ticket, user }) {
     setSaving(true);
     setSaveMsg('');
     try {
+      console.log('[handleSave] saving ticket:', ticket.id, 'form:', JSON.stringify(form));
       const res  = await fetch(`/api/metadata/${ticket.id}`, {
         method : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body   : JSON.stringify({ ...form, role: user?.role }),
       });
       const data = await res.json();
+      console.log('[handleSave] metadata response:', res.status, JSON.stringify(data));
       if (!res.ok) throw new Error(data.error || 'Save failed');
-       try {
+      
+      try {
         const syncRes  = await fetch('/api/sync-to-sheet', {
           method : 'POST',
           headers: { 'Content-Type': 'application/json' },
