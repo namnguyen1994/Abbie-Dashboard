@@ -98,7 +98,7 @@ Main step:
         
         * Frontend:
             - cd frontend
-            - npm run dev
+            - npm start
             - If successful, should see "Local: http://localhost:5173" in the console log
     
     6. Click on the http://localhost:5173 link to be taken to the login page
