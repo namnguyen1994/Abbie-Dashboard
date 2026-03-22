@@ -28,6 +28,7 @@ async function initDB() {
   db.run(`
     CREATE TABLE IF NOT EXISTS ticket_metadata (
       ticket_id          TEXT PRIMARY KEY,
+      epic_plat          TEXT,
       docs_status        TEXT,
       docs_to_change     TEXT,
       rn_writeup         TEXT,

@@ -150,6 +150,7 @@ It also shows error messages when login fails and provides visual feedback durin
 const EDITOR_ROLES = ['Senior Developer', 'Admin'];
 
 const DOC_FIELDS = [
+  { label: 'Epic PLAT (Parent)',                               key: 'epicPlat',         type: 'text'     },
   { label: 'Docs Status',                                      key: 'docsStatus',       type: 'text'     },
   { label: 'Docs to Change',                                   key: 'docsToChange',     type: 'text'     },
   { label: 'Release Notes Writeup',                            key: 'rnWriteup',        type: 'textarea' },
@@ -159,7 +160,7 @@ const DOC_FIELDS = [
   { label: 'Review Process',                                   key: 'reviewProcess',    type: 'text'     },
   { label: 'Are all docs changes noted?',                      key: 'docsChangesNoted', type: 'yesno'    },
   { label: 'Is ticket added to Wrike card?',                   key: 'wrikeCardAdded',   type: 'yesno'    },
-  { label: 'Include Release Notes (Sheet)',                     key: 'includeRnSheet',   type: 'rn'       },
+  { label: 'Include Release Notes (Sheet)',                    key: 'includeRnSheet',   type: 'rn'       },
   { label: 'Entered into Release Notes?',                      key: 'enteredIntoRn',    type: 'yesno'    },
   { label: 'PLAT Number/Link Added to Internal Version?',      key: 'platLinkAdded',    type: 'yesno'    },
 ];

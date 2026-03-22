@@ -160,7 +160,8 @@ function mergeMetadata(ticket, metaMap) {
   return {
     ...ticket,
     docs: {
-      docsStatus      : meta.docs_status        || null,
+      epicPlat        : meta.epic_plat           || null,
+      docsStatus      : meta.docs_status         || null,
       docsToChange    : meta.docs_to_change      || null,
       rnWriteup       : meta.rn_writeup          || null,
       notes           : meta.notes               || null,
@@ -364,6 +365,7 @@ app.post('/api/metadata/:id', (req, res) => {
  
   // Map frontend field names to database column names
   const dbFields = {};
+  if (fields.epicPlat         !== undefined) dbFields.epic_plat           = fields.epicPlat;
   if (fields.docsStatus       !== undefined) dbFields.docs_status         = fields.docsStatus;
   if (fields.docsToChange     !== undefined) dbFields.docs_to_change      = fields.docsToChange;
   if (fields.rnWriteup        !== undefined) dbFields.rn_writeup          = fields.rnWriteup;
@@ -640,6 +642,7 @@ Return ONLY the markdown text, no extra commentary.
 //Import CSV to Dashboard
 const COLUMN_MAP = {
   'PLAT'                                                                          : 'ticket_id',
+  'Epic PLAT'                                                                     : 'epic_plat',
   'Status'                                                                        : 'docs_status',
   'Docs to Change'                                                                : 'docs_to_change',
   'Release Notes Writeup'                                                         : 'rn_writeup',
