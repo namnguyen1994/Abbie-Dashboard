@@ -5,6 +5,7 @@ const axios   = require('axios');
 require('dotenv').config({ path: __dirname + '/.env' }); // Load environment variables from .env file
 console.log('ENV CHECK:', process.env.JIRA_BASE_URL, process.env.JIRA_PROJECT);
 
+// Import database functions for initializing the database, getting and upserting metadata, managing settings, and logging activity
 const { initDB, getMetadata, getAllMetadata, upsertMetadata, getSetting, setSetting, logActivity, getActivityLog } = require('./database');
 
 const app = express();
@@ -178,7 +179,7 @@ function mergeMetadata(ticket, metaMap) {
   };
 }
 
-function buildReleaseNoteSuggestionPrimpt(ticket) {
+function buildReleaseNoteSuggestionPrompt(ticket) {
   const { id, title, description, type, priority, includeReleaseNotes } = ticket;
   const desc = description || 'No description provided.';
 
@@ -333,6 +334,7 @@ app.get('/api/stats', async (req, res) => {
         bug  : count('type', 'bug'),
         story: count('type', 'story'),
         task : count('type', 'task'),
+        defect: count('type', 'defect'),
         other: count('type', 'other'),
       },
       fixVersions,
@@ -342,12 +344,10 @@ app.get('/api/stats', async (req, res) => {
   }
 });
 
-/*
-This endpoint takes a list of tickets and sends them to Gemini AI for categorization and summarization.
-It constructs a prompt that describes the task to Gemini, including the rules for categorizing tickets and a formatted list of the tickets to analyze.
-If successful, the original tickets are enriched with the AI's category and summary, and returned in the response.
+/* 
+This endpoint retrieves the metadata for a specific ticket by its ID. It uses the getMetadata function to fetch the metadata from the database and returns it in JSON format. 
+If no metadata is found, it returns an empty object.
 */
-
 app.get('/api/metadata/:id', (req, res) => {
   const meta = getMetadata(req.params.id);
   res.json(meta || {});
@@ -388,6 +388,12 @@ app.post('/api/metadata/:id', (req, res) => {
   res.json({ success: true, metadata: updated });
 });
 
+
+/*
+This endpoint takes a list of tickets and sends them to Gemini AI for categorization and summarization.
+It constructs a prompt that describes the task to Gemini, including the rules for categorizing tickets and a formatted list of the tickets to analyze.
+If successful, the original tickets are enriched with the AI's category and summary, and returned in the response.
+*/
 app.post('/api/ai/categorize', async (req, res) => {
   const { tickets } = req.body;
   if (!tickets?.length) return res.json({ tickets: [] });
@@ -430,6 +436,7 @@ Call Gemini AI with constructed prompt and handle the response.
 If the response is successful, parse the JSON and enrich the original tickets with the AI's category and summary.
 If there's an error during the AI call or response parsing, log the error and return the original tickets without enrichment to ensure the frontend can still display them.
 */
+
   try {
     const results = await Promise.all(batches.map(prompt => callGemini(prompt)));
     
@@ -639,7 +646,7 @@ Return ONLY the markdown text, no extra commentary.
   }
 });
 
-//Import CSV to Dashboard
+// Maps CSV column headers to database column names for upserting metadata. The 'PLAT' column is used as the unique identifier (ticket_id) and is not included in the upsert fields.
 const COLUMN_MAP = {
   'PLAT'                                                                          : 'ticket_id',
   'Epic PLAT'                                                                     : 'epic_plat',
@@ -661,7 +668,8 @@ const COLUMN_MAP = {
 const REVERSE_COLUMN_MAP = Object.fromEntries(
   Object.entries(COLUMN_MAP).map(([csv, db]) => [db, csv])
 );
- 
+
+// Simple CSV parser that handles quoted fields with commas and newlines. Returns an array of lines, where each line is an array of fields.
 function parseCSV(raw) {
   const lines = []; let line = []; let field = ''; let inQuote = false;
   for (let i = 0; i < raw.length; i++) {
@@ -695,6 +703,7 @@ app.post('/api/import-csv', (req, res) => {
     return res.status(400).json({ error: 'No CSV content provided.' });
   }
 
+  // Parse the CSV content, map columns to database fields, and upsert metadata for each ticket. Logs the number of imported and skipped records, and handles errors gracefully.
   try {
     const lines = parseCSV(csvContent);
     if (lines.length < 2) return res.status(400).json({ error: 'CSV appears to be empty.' });
@@ -722,6 +731,12 @@ app.post('/api/import-csv', (req, res) => {
   }
 });
 
+/* 
+The following code handles Google Sheets integration, allowing the application to sync ticket metadata with a Google Sheet. It includes functions to extract the Sheet ID from a URL, get the active Sheet ID and tab from settings or environment variables, and authenticate with Google APIs. 
+It also defines endpoints to get and set the Sheet settings, sync data from the Sheet into the database, and sync individual ticket changes back to the Sheet. 
+The COLUMN_MAP defines how CSV columns map to database fields for syncing purposes.
+*/
+
 const { google } = require('googleapis');
 const nodePath   = require('path');
 const { log } = require('console');
@@ -738,11 +753,13 @@ function getActiveSheetId() {
   return saved || process.env.GOOGLE_SHEET_ID || null;
 }
  
+// Returns the currently saved Sheet tab name from the database, falling back to .env or defaulting to 'Sheet1'
 function getActiveSheetTab() {
   const saved = getSetting('google_sheet_tab');
   return saved || process.env.GOOGLE_SHEET_TAB || 'Sheet1';
 }
- 
+
+// Authenticates with Google APIs using a service account key file and the necessary scopes for Sheets and Drive access
 function getGoogleAuth() {
   return new google.auth.GoogleAuth({
     keyFile: nodePath.join(__dirname, 'google-credentials.json'),
