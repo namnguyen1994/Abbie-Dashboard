@@ -86,7 +86,24 @@ Main step:
         * KB_RELEASE_URL=https://your-company.com/release-note-style-guide        (Your company's release note style guide URL)
         * GOOGLE_SHEET_TAB=Sheet1                                   (The tab name at the bottom of your Google Sheet)
     
-    4. Set up Google Sheet sync 
+    4. Set up the frontend using the following command in visual studio terminal:
+        * cd frontend
+        * npm install
+
+    5. Run the app by running the following command in the terminal for backend and frontend:
+        * Backend:
+            - cd backend
+            - node server.js
+            - If successful, should see "API running on http://localhost:5000" in the console log
+        
+        * Frontend:
+            - cd frontend
+            - npm start
+            - If successful, should see "Local: http://localhost:5173" in the console log
+    
+    6. Click on the http://localhost:5173 link to be taken to the login page
+
+    7. Set up Google Sheet sync 
         a. Create Google Cloud Project 
             i.   Go to console.cloud.google.com
             ii.  Click the project dropdown → New Project → name it and click Create
@@ -114,24 +131,7 @@ Main step:
             i.   Log in to the dashboard as Admin or Senior Developer
             ii.  Click 🔄 Sync Sheet in the top bar
             iii. Paste the full Google Sheet URL when prompted
-            iv.  Click OK — the URL is saved and the sheet syncs automatically
-    
-    5. Set up the frontend using the following command in visual studio terminal:
-        * cd frontend
-        * npm install
-
-    6. Run the app by running the following command in the terminal for backend and frontend:
-        * Backend:
-            - cd backend
-            - node server.js
-            - If successful, should see "API running on http://localhost:5000" in the console log
-        
-        * Frontend:
-            - cd frontend
-            - npm run dev
-            - If successful, should see "Local: http://localhost:5173" in the console log
-    
-    6. Click on the http://localhost:5173 link to be taken to the login page 
+            iv.  Click OK — the URL is saved and the sheet syncs automatically 
 
 Importing Documentation Data
 
