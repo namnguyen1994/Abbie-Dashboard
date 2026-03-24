@@ -701,6 +701,8 @@ function Dashboard({ user, onLogout }) {
   const [loadingTickets, setLoadingTickets] = useState(true);
   const [loadingAI,      setLoadingAI]      = useState(false);
   const [jiraError,      setJiraError]      = useState('');
+  const [showSheetModal, setShowSheetModal] = useState(false);
+  const [sheetUrlInput,  setSheetUrlInput]  = useState('');
 
 /*
 First step: load tickets from the backend API and set the loading state while the fetch is in progress. 
@@ -901,42 +903,20 @@ If there's an error (e.g., Jira offline), it sets an error message to be display
                   }} />
               </label>
             )}
+
             {EDITOR_ROLES.includes(user?.role) && (
               <button className="btn-import-csv" title="Sync from Google Sheet"
                 onClick={async () => {
-                  // Fetch the currently saved Sheet URL so we can pre-fill the prompt
-                  let currentUrl = '';
                   try {
                     const s = await fetch('/api/sheet-settings').then(r => r.json());
-                    currentUrl = s.sheetUrl || '';
+                    setSheetUrlInput(s.sheetUrl || '');
                   } catch { /* ignore */ }
- 
-                  // Ask the client to paste their Google Sheet URL
-                  const input = window.prompt(
-                    '📋 Paste your Google Sheet URL:\n(It will be saved for future syncs)',
-                    currentUrl
-                  );
-                  if (!input) return; // user cancelled
- 
-                  // Save the new URL first, then sync
-                  try {
-                    const saveRes  = await fetch('/api/sheet-settings', {
-                      method : 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body   : JSON.stringify({ sheetUrl: input, role: user?.role }),
-                    });
-                    const saveData = await saveRes.json();
-                    if (!saveRes.ok) { alert(`❌ ${saveData.error}`); return; }
- 
-                    const syncRes  = await fetch(`/api/sync-from-sheet?userEmail=${encodeURIComponent(user?.email)}&userRole=${encodeURIComponent(user?.role)}`);
-                    const syncData = await syncRes.json();
-                    if (syncRes.ok) { alert(syncData.message); loadTickets(); }
-                    else            { alert(`❌ ${syncData.error}`); }
-                  } catch { alert('❌ Sync failed. Check your backend.'); }
+                  setShowSheetModal(true);
                 }}>
                 🔄 Sync Sheet
               </button>
             )}
+
             <div className="icon-btn">🔔</div>
           </div>
         </div>
@@ -1261,6 +1241,48 @@ If there's an error (e.g., Jira offline), it sets an error message to be display
 
       {selectedTicket && (
         <TicketModal ticket={selectedTicket} onClose={() => setSelectedTicket(null)} user={user} />
+      )}
+
+      {showSheetModal && (
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowSheetModal(false)}>
+          <div className="modal fade-in" style={{ maxWidth: 480 }}>
+            <div className="modal-header">
+              <h2 className="modal-title">🔄 Sync from Google Sheet</h2>
+              <button className="modal-close" onClick={() => setShowSheetModal(false)}>✕</button>
+            </div>
+            <div className="modal-body">
+              <p style={{ fontSize: '13px', color: 'var(--gray-600)', marginBottom: 12 }}>
+                Paste your Google Sheet URL below. It will be saved for future syncs.
+              </p>
+              <input
+                className="form-input"
+                value={sheetUrlInput}
+                onChange={e => setSheetUrlInput(e.target.value)}
+                placeholder="https://docs.google.com/spreadsheets/d/..."
+              />
+              <div style={{ display: 'flex', gap: 8, marginTop: 16, justifyContent: 'flex-end' }}>
+                <button className="btn-secondary" onClick={() => setShowSheetModal(false)}>Cancel</button>
+                <button className="btn-primary" onClick={async () => {
+                  if (!sheetUrlInput) return;
+                  setShowSheetModal(false);
+                  try {
+                    const saveRes = await fetch('/api/sheet-settings', {
+                      method : 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body   : JSON.stringify({ sheetUrl: sheetUrlInput, role: user?.role }),
+                    });
+                    const saveData = await saveRes.json();
+                    if (!saveRes.ok) { alert(`❌ ${saveData.error}`); return; }
+                    const syncRes  = await fetch(`/api/sync-from-sheet?userEmail=${encodeURIComponent(user?.email)}&userRole=${encodeURIComponent(user?.role)}`);
+                    const syncData = await syncRes.json();
+                    if (syncRes.ok) { alert(syncData.message); loadTickets(); }
+                    else            { alert(`❌ ${syncData.error}`); }
+                  } catch { alert('❌ Sync failed. Check your backend.'); }
+                }}>Sync →</button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
