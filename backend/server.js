@@ -57,7 +57,7 @@ async function callGemini(prompt) {
   The function uses basic authentication with the Jira API token and email, and returns an array of issues or an empty array if there are no issues found.
 */
 async function fetchJiraTickets(maxResults = 50) {
-  const jql = `project=${CONFIG.JIRA_PROJECT} ORDER BY updated DESC`;
+  const jql = `project=${CONFIG.JIRA_PROJECT} ORDER BY issuekey ASC`;
   const url   = `${CONFIG.JIRA_BASE_URL}/rest/api/3/search/jql`;
   const token = Buffer.from(`${CONFIG.JIRA_EMAIL}:${CONFIG.JIRA_API_TOKEN}`).toString('base64');
 
@@ -283,9 +283,16 @@ app.get('/api/tickets', async (req, res) => {
       tickets = tickets.filter(t => t.includeReleaseNotes === includeReleaseNotes);
     }
 
+    if (tickets.length === 0) {
+      logActivity('system', 'system', 'JIRA_FETCH_FAILED', null, 'Jira returned 0 tickets — check project key and API credentials', null);
+    } else {
+      logActivity('system', 'system', 'JIRA_FETCH_SUCCESS', null, `Fetched ${tickets.length} tickets from Jira`, null);
+    }
+
     res.json({ tickets, total: tickets.length });
   } catch (err) {
     console.error('Error fetching tickets:', err.response?.data || err.message);
+    logActivity('system', 'system', 'JIRA_FETCH_FAILED', null, err.message, null);
     res.status(500).json({ error: err.message, tickets: [], total: 0 });
   }
 });
@@ -457,6 +464,7 @@ If there's an error during the AI call or response parsing, log the error and re
     res.json({ tickets: enriched });
   } catch (err) {
     console.error('Gemini categorise error:', err.message);
+    logActivity('system', 'system', 'GEMINI_CATEGORIZE_FAILED', null, err.message, null);
     res.json({ tickets }); 
   }
 });
@@ -476,7 +484,7 @@ app.get('/api/ai/ticket/:id', async (req, res) => {
     const ticket = normaliseTicket(response.data);
 
     const prompt = `
-You are a senior software engineer reviewing a Jira ticket.
+You are a senior software engineer AND documentation specialist reviewing a Jira ticket.
 Ticket ID   : ${ticket.id}
 Title       : ${ticket.title}
 Type        : ${ticket.type}
@@ -489,6 +497,7 @@ Return a JSON object with these keys:
 - "riskLevel": "Low" | "Medium" | "High" | "Critical"
 - "estimatedResolution": e.g. "1-2 days", "3-5 days", "1 week+"
 - "suggestedActions": array of 2-3 short action strings
+- "docRecommendations": array of 3-5 documentation-specific recommendations for the docs team, each as a plain string. Cover what docs need to be created or updated, whether release notes are needed, what audience should be targeted (internal vs external), any terminology or screenshots that should be included, and any review steps the docs team should follow.
 
 Respond ONLY with valid JSON, no markdown.
 `;
@@ -562,6 +571,7 @@ Respond ONLY with valid JSON, no markdown.
     res.json(data);
   } catch (err) {
     console.error('Analysis AI error:', err.message);
+    logActivity('system', 'system', 'GEMINI_ANALYSIS_FAILED', null, err.message, null);
     res.status(500).json({ error: err.message });
   }
 });
@@ -912,6 +922,49 @@ app.get('/api/activity-log', (req, res) => {
   }
   const logs = getActivityLog(200);
   res.json({ logs });
+});
+
+// POST /api/ai/query — accepts a plain text question and returns a Gemini answer with a 15s server-side timeout
+app.post('/api/ai/query', async (req, res) => {
+  const { question } = req.body;
+  if (!question?.trim()) return res.status(400).json({ error: 'No question provided.' });
+ 
+  if (!CONFIG.GEMINI_API_KEY) {
+    return res.status(500).json({ error: 'Gemini API key not configured.' });
+  }
+
+  const prompt = `
+You are a helpful assistant for a Jira project management dashboard.
+Answer the following question clearly and concisely in plain text (no markdown).
+ 
+Question: ${question.trim()}
+`.trim();
+ 
+  // Race the Gemini call against a 15-second timeout
+  const timeoutPromise = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error('TIMEOUT')), 15000)
+  );
+
+    const geminiCall = (async () => {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${CONFIG.GEMINI_API_KEY}`;
+    const response = await axios.post(url, {
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { temperature: 0.4, maxOutputTokens: 1024 },
+    });
+    return response.data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  })();
+ 
+  try {
+    const answer = await Promise.race([geminiCall, timeoutPromise]);
+    res.json({ answer });
+  } catch (err) {
+    if (err.message === 'TIMEOUT') {
+      return res.status(504).json({ error: 'TIMEOUT' });
+    }
+    const detail = err.response?.data?.error?.message || err.message || 'Unknown error';
+    console.error('AI query error:', detail);
+    res.status(500).json({ error: detail });
+  }
 });
 
 //Start the backend server on the specified port and log a message indicating the API is running and the URL to access it.

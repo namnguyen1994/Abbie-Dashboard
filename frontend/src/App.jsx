@@ -297,6 +297,9 @@ function DocsSection({ ticket, user }) {
 function TicketModal({ ticket, onClose, user }) {
   const [aiData,     setAiData]     = useState(null);
   const [loadingAI,  setLoadingAI]  = useState(true);
+  const [showAiSummary, setShowAiSummary] = useState(true);
+  const [showAnalysis,  setShowAnalysis]  = useState(true); 
+  const [showDocRecs,   setShowDocRecs]   = useState(true);
 
   // When the component mounts or when the ticket ID changes, this effect triggers a fetch request to the backend API to retrieve AI-generated analysis for the specific ticket.
   useEffect(() => {
@@ -350,11 +353,19 @@ function TicketModal({ ticket, onClose, user }) {
           </div>
 
           {/* Gemini AI Summary styles */}
-          {ticket.aiSummary && (
-            <div className="description-box" style={{ marginBottom: '12px' }}>
-              <div className="desc-label">✨ AI Summary</div>
+          {ticket.aiSummary && showAiSummary && (
+            <div className="description-box ai-summary-dismissible" style={{ marginBottom: '12px' }}>
+              <div className="desc-label-row">
+                <span className="desc-label">✨ AI Summary</span>
+                <button className="ai-dismiss-btn" onClick={() => setShowAiSummary(false)} title="Dismiss">✕ Dismiss</button>
+              </div>
               <p style={{ fontSize: '13px', color: 'var(--gray-700)', lineHeight: '1.7' }}>{ticket.aiSummary}</p>
             </div>
+          )}
+          {ticket.aiSummary && !showAiSummary && (
+            <button className="ai-restore-btn" onClick={() => setShowAiSummary(true)}>
+              ✨ Show AI Summary
+            </button>
           )}
 
           <div className="description-box">
@@ -365,30 +376,63 @@ function TicketModal({ ticket, onClose, user }) {
           </div>
 
           {/* Gemini AI Analysis */}
-          <div className="ai-ticket-box">
-            <div className="ai-badge">✨ Gemini Deep Analysis</div>
-            {loadingAI ? (
-              <div className="ai-loading">
-                <span className="loading-spinner"></span> Analyzing with Gemini…
+ {showAnalysis ? (
+            <div className="ai-ticket-box">
+              <div className="desc-label-row">
+                <div className="ai-badge" style={{ margin: 0 }}>✨ Gemini Deep Analysis</div>
+                <button className="ai-dismiss-btn" onClick={() => setShowAnalysis(false)}>✕ Dismiss</button>
               </div>
-            ) : aiData ? (
-              <>
-                <p className="ai-ticket-summary">{aiData.aiSummary}</p>
-                <div className="ai-meta">
-                  <span className="ai-meta-tag">⚡ Risk: {aiData.riskLevel}</span>
-                  <span className="ai-meta-tag">🕐 Est. {aiData.estimatedResolution}</span>
+              {loadingAI ? (
+                <div className="ai-loading">
+                  <span className="loading-spinner"></span> Analyzing with Gemini…
                 </div>
-                {aiData.suggestedActions?.length > 0 && (
-                  <ul className="ai-actions">
-                    {aiData.suggestedActions.map((a, i) => <li key={i}>{a}</li>)}
-                  </ul>
-                )}
-              </>
-            ) : (
-              <p style={{ fontSize: '13px', color: 'var(--gray-400)' }}>AI analysis unavailable.</p>
-            )}
-          </div>
-
+              ) : aiData ? (
+                <>
+                  <p className="ai-ticket-summary">{aiData.aiSummary}</p>
+                  <div className="ai-meta">
+                    <span className="ai-meta-tag">⚡ Risk: {aiData.riskLevel}</span>
+                    <span className="ai-meta-tag">🕐 Est. {aiData.estimatedResolution}</span>
+                  </div>
+                  {aiData.suggestedActions?.length > 0 && (
+                    <ul className="ai-actions">
+                      {aiData.suggestedActions.map((a, i) => <li key={i}>{a}</li>)}
+                    </ul>
+                  )}
+ 
+                  {/* Documentation Recommendations */}
+                  {aiData.docRecommendations?.length > 0 && (
+                    showDocRecs ? (
+                      <div className="doc-recs-box">
+                        <div className="desc-label-row">
+                          <div className="doc-recs-label">📄 Docs Team Recommendations</div>
+                          <button className="ai-dismiss-btn" onClick={() => setShowDocRecs(false)}>✕ Dismiss</button>
+                        </div>
+                        <ul className="doc-recs-list">
+                          {aiData.docRecommendations.map((rec, i) => (
+                            <li key={i} className="doc-recs-item">
+                              <span className="doc-recs-num">{i + 1}</span>
+                              <span>{rec}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : (
+                      <button className="ai-restore-btn" onClick={() => setShowDocRecs(true)}>
+                        📄 Show Docs Recommendations
+                      </button>
+                    )
+                  )}
+                </>
+              ) : (
+                <p style={{ fontSize: '13px', color: 'var(--gray-400)' }}>AI analysis unavailable.</p>
+              )}
+            </div>
+          ) : (
+            <button className="ai-restore-btn" onClick={() => setShowAnalysis(true)}>
+              ✨ Show Gemini Deep Analysis
+            </button>
+          )}
+ 
           <DocsSection ticket={ticket} user={user} />
         </div>
       </div>
@@ -400,7 +444,7 @@ function TicketModal({ ticket, onClose, user }) {
  AI-powered release notes page that allows users to select which tickets to include, configure the release version and an optional knowledge base URL, and generates professional release notes in markdown format using Gemini AI. 
  The generated notes can be copied to the clipboard and are rendered with basic markdown formatting for easy reading.
 */
-function ReleaseNotesPage({ tickets }) {
+function ReleaseNotesPage({ tickets, user }) {
   const [version,      setVersion]      = useState('v1.0');
   const [kbUrl,        setKbUrl]        = useState('');
   const [notes,        setNotes]        = useState('');
@@ -434,7 +478,7 @@ function ReleaseNotesPage({ tickets }) {
       const res  = await fetch('/api/ai/release-notes', {
         method : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body   : JSON.stringify({ tickets: selected, version, kbUrl }),
+        body   : JSON.stringify({ tickets: selected, version, kbUrl, userEmail: user?.email, userRole: user?.role }),
       });
       const data = await res.json();
       setNotes(data.releaseNotes || data.error || 'No response from AI.');
@@ -598,6 +642,10 @@ const ACTION_LABELS = {
   SHEET_SYNC_OUT          : { label: '🔄 Sheet Sync Out',   color: '#f59e0b' },
   RELEASE_NOTES_GENERATED : { label: '📋 Release Notes',    color: '#0284c7' },
   PERMISSION_DENIED       : { label: '🚫 Access Denied',    color: '#ef4444' },
+  JIRA_FETCH_SUCCESS      : { label: '🟢 Jira Fetch OK',            color: '#22c55e' },
+  JIRA_FETCH_FAILED       : { label: '🔴 Jira Fetch Failed',        color: '#ef4444' },
+  GEMINI_CATEGORIZE_FAILED  : { label: '🤖 Gemini Categorize Failed', color: '#f59e0b' },
+  GEMINI_ANALYSIS_FAILED    : { label: '🤖 Gemini Analysis Failed',   color: '#f59e0b' },
 };
 
 /*
@@ -681,6 +729,104 @@ function ActivityLogPage({ user }) {
   );
 }
 
+// AI Query Page component that allows users to ask questions about their project, tickets, or processes and receive responses from Gemini AI in plain English.
+function AiQueryPage() {
+  const [question, setQuestion] = useState('');
+  const [answer,   setAnswer]   = useState('');
+  const [loading,  setLoading]  = useState(false);
+  const [error,    setError]    = useState('');
+ 
+  const CLIENT_TIMEOUT_MS = 17000; // slightly longer than server's 15s to let server error arrive first
+ 
+  const submitQuery = async () => {
+    if (!question.trim()) return;
+    setLoading(true);
+    setAnswer('');
+    setError('');
+ 
+    // Client-side timeout as a safety net
+    const clientTimeout = setTimeout(() => {
+      setLoading(false);
+      setError('AI response unavailable. Please try again later.');
+    }, CLIENT_TIMEOUT_MS);
+ 
+    try {
+      const res  = await fetch('/api/ai/query', {
+        method : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body   : JSON.stringify({ question }),
+      });
+      clearTimeout(clientTimeout);
+      const data = await res.json();
+      if (!res.ok || data.error === 'TIMEOUT') {
+        setError('AI response unavailable. Please try again later.');
+      } else if (!res.ok) {
+        setError(`AI response unavailable. Please try again later. (${data.error})`);
+      } else {
+        setAnswer(data.answer || 'No response returned.');
+      }
+    } catch {
+      clearTimeout(clientTimeout);
+      setError('AI response unavailable. Please try again later.');
+    }
+    setLoading(false);
+  };
+ 
+  return (
+    <div className="release-page fade-in">
+      <div className="card">
+        <div className="card-header">
+          <span className="card-title">🤖 Ask AI</span>
+          <span className="ai-badge" style={{ margin: 0 }}>Gemini</span>
+        </div>
+        <div className="card-body">
+          <p style={{ fontSize: '13px', color: 'var(--gray-500)', marginBottom: '16px' }}>
+            Ask any question about your project, tickets, or process. Gemini will respond in plain English.
+          </p>
+          <div className="ai-query-input-row">
+            <textarea
+              className="ai-query-textarea"
+              placeholder="e.g. What should I prioritize this sprint? How do I write good release notes?"
+              value={question}
+              rows={3}
+              onChange={e => setQuestion(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitQuery(); } }}
+            />
+            <button className="btn-primary ai-query-btn" onClick={submitQuery} disabled={loading || !question.trim()}>
+              {loading ? '🔄' : '→ Ask'}
+            </button>
+          </div>
+ 
+          {/* Timeout / error message */}
+          {error && (
+            <div className="error-banner gemini-error-banner" style={{ marginTop: '16px' }}>
+              🤖 <strong>{error}</strong>
+            </div>
+          )}
+ 
+          {/* Loading state */}
+          {loading && (
+            <div className="ai-loading" style={{ marginTop: '20px' }}>
+              <span className="loading-spinner"></span>
+              <span style={{ color: 'var(--sky-600)', fontSize: '13px' }}>Gemini is thinking…</span>
+            </div>
+          )}
+ 
+          {/* Answer */}
+          {answer && !loading && (
+            <div className="ai-query-answer fade-in">
+              <div className="ai-badge" style={{ marginBottom: '10px' }}>✨ Gemini Response</div>
+              <p style={{ fontSize: '14px', color: 'var(--gray-700)', lineHeight: '1.8', whiteSpace: 'pre-wrap' }}>
+                {answer}
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /*
 Dashboard component that serves as the main interface for users after logging in, displaying an overview of tickets, statistics, and providing navigation to different sections of the dashboard. 
 It also handles fetching tickets from the backend, sending them for AI analysis, and managing the state of the application.
@@ -692,6 +838,8 @@ function Dashboard({ user, onLogout }) {
   const [filterVersion,  setFilterVersion]  = useState('all');
   const [filterRnType,   setFilterRnType]   = useState('all');
   const [showAiPanel,    setShowAiPanel]    = useState(true);
+  const [showCategoryChart, setShowCategoryChart] = useState(true);
+  const [showStatusChart,   setShowStatusChart]   = useState(true);
   const [selectedTicket, setSelectedTicket] = useState(null);
 
   const [tickets,        setTickets]        = useState([]);
@@ -701,6 +849,7 @@ function Dashboard({ user, onLogout }) {
   const [loadingTickets, setLoadingTickets] = useState(true);
   const [loadingAI,      setLoadingAI]      = useState(false);
   const [jiraError,      setJiraError]      = useState('');
+  const [geminiError,    setGeminiError]    = useState('');
 
 /*
 First step: load tickets from the backend API and set the loading state while the fetch is in progress. 
@@ -710,35 +859,43 @@ If there's an error (e.g., Jira offline), it sets an error message to be display
   const loadTickets = useCallback(async () => {
     setLoadingTickets(true);
     setJiraError('');
+    setGeminiError('');
     try {
       const res  = await fetch('/api/tickets');
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Jira fetch failed');
 
       const raw = data.tickets || [];
+      if (raw.length === 0) throw new Error('No tickets returned from Jira. Check your project key and API credentials.');
       setTickets(raw);           // show immediately while AI runs
 
       //Second step: send raw tickets to the backend for AI categorization and enrichment, then update the tickets state with the categorized data once it is received. This allows the dashboard to display AI-generated categories and insights alongside the original ticket information.
       if (raw.length > 0) {
         setLoadingAI(true);
-        const catRes  = await fetch('/api/ai/categorize', {
-          method : 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body   : JSON.stringify({ tickets: raw }),
-        });
-        
-        const catData = await catRes.json();
-        const enriched = catData.tickets?.length ? catData.tickets : raw;
-        setTickets(enriched);
+             try {
+          const catRes  = await fetch('/api/ai/categorize', {
+            method : 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body   : JSON.stringify({ tickets: raw }),
+          });
+          if (!catRes.ok) throw new Error(`Categorization failed (${catRes.status})`);
  
-        const analysisRes  = await fetch('/api/ai/analysis', {
-          method : 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body   : JSON.stringify({ tickets: enriched }),
-        });
-
-        const analysisData = await analysisRes.json();
-        if (analysisData?.summary) setAiAnalysis(analysisData);
+          const catData = await catRes.json();
+          const enriched = catData.tickets?.length ? catData.tickets : raw;
+          setTickets(enriched);
+ 
+          const analysisRes  = await fetch('/api/ai/analysis', {
+            method : 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body   : JSON.stringify({ tickets: enriched }),
+          });
+          if (!analysisRes.ok) throw new Error(`Analysis failed (${analysisRes.status})`);
+ 
+          const analysisData = await analysisRes.json();
+          if (analysisData?.summary) setAiAnalysis(analysisData);
+        } catch (aiErr) {
+          setGeminiError(aiErr.message);
+        }
         setLoadingAI(false);
       }
     } catch (err) {
@@ -789,6 +946,7 @@ If there's an error (e.g., Jira offline), it sets an error message to be display
     { id: 'tasks',         icon: '✅', label: 'Tasks',       badge: catCounts.task   },
     { id: 'other',         icon: '📦', label: 'Other' },
     { id: 'release-notes', icon: '📋', label: 'Release Notes' },
+    { id: 'ai-query',      icon: '🤖', label: 'Ask AI' },
     
     // Activity Log — only visible to Senior Developer and QA Engineer
     ...(['Senior Developer', 'QA Engineer'].includes(user?.role)
@@ -812,6 +970,7 @@ If there's an error (e.g., Jira offline), it sets an error message to be display
     tasks        : '✅ Tasks',
     other        : '📦 Other Tickets',
     'release-notes': '📋 Release Notes',
+    'ai-query'     : '🤖 Ask AI',
     'activity-log' : '🔐 Activity Log'
   }[activePage] || '📊 Dashboard';
 
@@ -945,7 +1104,9 @@ If there's an error (e.g., Jira offline), it sets an error message to be display
 
           {/* Release Note Page */}
           {activePage === 'release-notes' ? (
-            <ReleaseNotesPage tickets={tickets} />
+            <ReleaseNotesPage tickets={tickets} user={user} />
+          ) : activePage === 'ai-query' ? (
+            <AiQueryPage />
           ) :  activePage === 'activity-log' ? (
             <ActivityLogPage user = {user} />
           ) : (
@@ -971,6 +1132,13 @@ If there's an error (e.g., Jira offline), it sets an error message to be display
               {jiraError && (
                 <div className="error-banner">
                   ⚠️ <strong>Jira connection failed:</strong> {jiraError}. Check your <code>JIRA_API_TOKEN</code> and <code>JIRA_BASE_URL</code> in server.js.
+                </div>
+              )}
+
+               {/* Gemini Error Banner */}
+              {geminiError && (
+                <div className="error-banner gemini-error-banner">
+                  🤖 <strong>Gemini AI unavailable:</strong> {geminiError}. Please check your <code>GEMINI_API_KEY</code> in server.js and try again later.
                 </div>
               )}
 
@@ -1043,7 +1211,11 @@ If there's an error (e.g., Jira offline), it sets an error message to be display
                           <div className="empty-state-icon">🔍</div>
                           <div className="empty-state-text">No tickets match your search.</div>
                         </div>
-                      ) : filtered.map((t, i) => (
+                      ) : [...filtered].sort((a, b) => {
+                            const numA = parseInt(a.id.replace(/\D/g, ''), 10);
+                            const numB = parseInt(b.id.replace(/\D/g, ''), 10);
+                            return numA - numB;
+                          }).map((t, i) => (
                         <div key={t.id} className="ticket-row fade-in"
                           style={{ animationDelay: `${i * 0.03}s` }}
                           onClick={() => setSelectedTicket(t)}>
@@ -1078,67 +1250,83 @@ If there's an error (e.g., Jira offline), it sets an error message to be display
                   </div>
 
                   {/* Charts row */}
-                  <div className="charts-grid">
-                    <div className="card">
-                      <div className="card-header">
-                        <span className="card-title"><span className="card-title-icon">🍩</span> By Category</span>
+                     <div className="charts-grid">
+ 
+                    {/* By Category */}
+                    {showCategoryChart ? (
+                      <div className="card">
+                        <div className="card-header">
+                          <span className="card-title"><span className="card-title-icon">🍩</span> By Category</span>
+                          <button type="button" className="ai-dismiss-btn" onClick={e => { e.stopPropagation(); setShowCategoryChart(false); }}>✕ Hide</button>
+                        </div>
+                        <div className="card-body">
+                          <div className="donut-wrap">
+                            <DonutChart
+                              data={[
+                                { value: catCounts.bug    || 1 },
+                                { value: catCounts.story  || 1 },
+                                { value: catCounts.task   || 1 },
+                                { value: catCounts.other  || 1 },
+                                { value: catCounts.defect || 1 },
+                              ]}
+                              colors={['#ef4444', '#8b5cf6', '#22c55e', '#f59e0b', '#f97316']}
+                              size={110} stroke={20} />
+                            <div className="donut-legend">
+                              {[
+                                ['🐛 Bugs',    catCounts.bug,    '#ef4444'],
+                                ['📖 Stories', catCounts.story,  '#8b5cf6'],
+                                ['✅ Tasks',   catCounts.task,   '#22c55e'],
+                                ['📦 Other',   catCounts.other,  '#f59e0b'],
+                                ['⚠️ Defects', catCounts.defect, '#f97316'],
+                              ].map(([l, v, c]) => (
+                                <div key={l} className="legend-item">
+                                  <span className="legend-dot" style={{ background: c }}></span>
+                                  {l}
+                                  <span className="legend-val">{v}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                      <div className="card-body">
-                        <div className="donut-wrap">
-                          <DonutChart
-                            data={[
-                              { value: catCounts.bug   || 1 },
-                              { value: catCounts.story || 1 },
-                              { value: catCounts.task  || 1 },
-                              { value: catCounts.other || 1 },
-                            ]}
-                            colors={['#ef4444', '#8b5cf6', '#22c55e', '#f59e0b']}
-                            size={110} stroke={20} />
-                          <div className="donut-legend">
+                    ) : (
+                      <button type="button" className="ai-restore-btn" onClick={() => setShowCategoryChart(true)}>🍩 Show By Category</button>
+                    )}
+ 
+                    {/* By Status */}
+                    {showStatusChart ? (
+                      <div className="card">
+                        <div className="card-header">
+                          <span className="card-title"><span className="card-title-icon">📊</span> By Status</span>
+                          <button type="button" className="ai-dismiss-btn" onClick={e => { e.stopPropagation(); setShowStatusChart(false); }}>✕ Hide</button>
+                        </div>
+                        <div className="card-body">
+                          <div className="bar-chart">
                             {[
-                              ['🐛 Bugs',    catCounts.bug,   '#ef4444'],
-                              ['📖 Stories', catCounts.story, '#8b5cf6'],
-                              ['✅ Tasks',   catCounts.task,  '#22c55e'],
-                              ['📦 Other',   catCounts.other, '#f59e0b'],
-                            ].map(([l, v, c]) => (
-                              <div key={l} className="legend-item">
-                                <span className="legend-dot" style={{ background: c }}></span>
-                                {l}
-                                <span className="legend-val">{v}</span>
+                              ['Open',        stats.open        || 0, '#38bdf8'],
+                              ['In Progress', stats.inProgress  || 0, '#f59e0b'],
+                              ['Done',        stats.done        || 0, '#22c55e'],
+                            ].map(([label, val, color]) => (
+                              <div key={label} className="bar-row">
+                                <div className="bar-label">
+                                  <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: color, display: 'inline-block' }}></span>
+                                    {label}
+                                  </span>
+                                  <span style={{ fontWeight: '700', fontFamily: "'DM Mono',monospace" }}>{val}</span>
+                                </div>
+                                <div className="bar-track">
+                                  <div className="bar-fill" style={{ width: `${(val / (tickets.length || 1)) * 100}%`, background: color }}></div>
+                                </div>
                               </div>
                             ))}
                           </div>
                         </div>
                       </div>
-                    </div>
-
-                    <div className="card">
-                      <div className="card-header">
-                        <span className="card-title"><span className="card-title-icon">📊</span> By Status</span>
-                      </div>
-                      <div className="card-body">
-                        <div className="bar-chart">
-                          {[
-                            ['Open',        stats.open        || 0, '#38bdf8'],
-                            ['In Progress', stats.inProgress  || 0, '#f59e0b'],
-                            ['Done',        stats.done        || 0, '#22c55e'],
-                          ].map(([label, val, color]) => (
-                            <div key={label} className="bar-row">
-                              <div className="bar-label">
-                                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: color, display: 'inline-block' }}></span>
-                                  {label}
-                                </span>
-                                <span style={{ fontWeight: '700', fontFamily: "'DM Mono',monospace" }}>{val}</span>
-                              </div>
-                              <div className="bar-track">
-                                <div className="bar-fill" style={{ width: `${(val / (tickets.length || 1)) * 100}%`, background: color }}></div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
+                    ) : (
+                      <button type="button" className="ai-restore-btn" onClick={() => setShowStatusChart(true)}>📊 Show By Status</button>
+                    )}
+ 
                   </div>
                 </div>
 
