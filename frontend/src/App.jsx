@@ -850,7 +850,8 @@ function Dashboard({ user, onLogout }) {
   const [loadingAI,      setLoadingAI]      = useState(false);
   const [jiraError,      setJiraError]      = useState('');
   const [geminiError,    setGeminiError]    = useState('');
-
+  const [showSheetModal, setShowSheetModal] = useState(false);
+  const [sheetUrlInput,  setSheetUrlInput]  = useState('');
 /*
 First step: load tickets from the backend API and set the loading state while the fetch is in progress. 
 If the fetch is successful, it updates the tickets state with the retrieved data. 
