@@ -1096,3 +1096,19 @@ button.icon-btn {
   background: var(--sky-50);
   border-style: solid;
 }
+
+.ai-manual-trigger {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 24px 20px;
+  background: var(--sky-50);
+  border: 1.5px dashed var(--sky-200);
+  border-radius: var(--radius);
+  text-align: center;
+  margin-bottom: 12px;
+}
+.ai-manual-icon { font-size: 28px; }
+.ai-manual-text { font-size: 13px; color: var(--gray-500); line-height: 1.5; max-width: 320px; }
+.ai-manual-btn  { margin-top: 4px; }

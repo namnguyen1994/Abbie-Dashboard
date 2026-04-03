@@ -296,20 +296,29 @@ function DocsSection({ ticket, user }) {
 // Modal component that displays detailed information about a selected ticket, including its properties, description, and AI-generated analysis.
 function TicketModal({ ticket, onClose, user }) {
   const [aiData,     setAiData]     = useState(null);
-  const [loadingAI,  setLoadingAI]  = useState(true);
+  const [loadingAI,  setLoadingAI]  = useState(false);
+  const [aiTriggered,   setAiTriggered]   = useState(false)
+  const [aiError,       setAiError]       = useState('');
   const [showAiSummary, setShowAiSummary] = useState(true);
   const [showAnalysis,  setShowAnalysis]  = useState(true); 
   const [showDocRecs,   setShowDocRecs]   = useState(true);
 
   // When the component mounts or when the ticket ID changes, this effect triggers a fetch request to the backend API to retrieve AI-generated analysis for the specific ticket.
-  useEffect(() => {
+  const runAnalysis = async () => {
+    setAiTriggered(true);
     setLoadingAI(true);
     setAiData(null);
-    fetch(`/api/ai/ticket/${ticket.id}`)
-      .then(r => r.json())
-      .then(d => { setAiData(d); setLoadingAI(false); })
-      .catch(() => setLoadingAI(false));
-  }, [ticket.id]);
+    setAiError('');
+    try {
+      const r = await fetch(`/api/ai/ticket/${ticket.id}`);
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Analysis failed');
+      setAiData(d);
+    } catch (err) {
+      setAiError(err.message);
+    }
+    setLoadingAI(false);
+  };
 
   // The component renders a modal overlay that displays the ticket's title, type, status, priority, assignee, reporter, sprint, story points, creation and update dates, as well as the description and AI analysis.
   return (
@@ -376,15 +385,34 @@ function TicketModal({ ticket, onClose, user }) {
           </div>
 
           {/* Gemini AI Analysis */}
- {showAnalysis ? (
+          {!aiTriggered ? (
+            <div className="ai-manual-trigger">
+              <div className="ai-manual-icon">✨</div>
+              <div className="ai-manual-text">Please enable AI analysis to get a deep understanding of this ticket.</div>
+              <button className="btn-primary ai-manual-btn" onClick={runAnalysis}>
+                ✨ Run Gemini Analysis
+              </button>
+            </div>
+          ) : showAnalysis ? (
             <div className="ai-ticket-box">
               <div className="desc-label-row">
                 <div className="ai-badge" style={{ margin: 0 }}>✨ Gemini Deep Analysis</div>
-                <button className="ai-dismiss-btn" onClick={() => setShowAnalysis(false)}>✕ Dismiss</button>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button className="ai-dismiss-btn" onClick={runAnalysis} disabled={loadingAI}>↻ Re-run</button>
+                  <button className="ai-dismiss-btn" onClick={() => setShowAnalysis(false)}>✕ Dismiss</button>
+                </div>
               </div>
               {loadingAI ? (
                 <div className="ai-loading">
                   <span className="loading-spinner"></span> Analyzing with Gemini…
+                </div>
+              ) : aiError ? (
+                <div className="ai-unavailable-msg" style={{ marginTop: 8 }}>
+                  <span className="ai-unavailable-icon">🤖</span>
+                  <div>
+                    <div className="ai-unavailable-title">Gemini AI is currently unavailable</div>
+                    <div className="ai-unavailable-detail">Please ensure your <code>GEMINI_API_KEY</code> is correct in server.js and try again later.</div>
+                  </div>
                 </div>
               ) : aiData ? (
                 <>
@@ -398,8 +426,6 @@ function TicketModal({ ticket, onClose, user }) {
                       {aiData.suggestedActions.map((a, i) => <li key={i}>{a}</li>)}
                     </ul>
                   )}
- 
-                  {/* Documentation Recommendations */}
                   {aiData.docRecommendations?.length > 0 && (
                     showDocRecs ? (
                       <div className="doc-recs-box">
@@ -423,9 +449,7 @@ function TicketModal({ ticket, onClose, user }) {
                     )
                   )}
                 </>
-              ) : (
-                <p style={{ fontSize: '13px', color: 'var(--gray-400)' }}>AI analysis unavailable.</p>
-              )}
+              ) : null}
             </div>
           ) : (
             <button className="ai-restore-btn" onClick={() => setShowAnalysis(true)}>
@@ -439,6 +463,7 @@ function TicketModal({ ticket, onClose, user }) {
     </div>
   );
 }
+ 
 
 /*
  AI-powered release notes page that allows users to select which tickets to include, configure the release version and an optional knowledge base URL, and generates professional release notes in markdown format using Gemini AI. 
@@ -837,6 +862,8 @@ function Dashboard({ user, onLogout }) {
   const [search,         setSearch]         = useState('');
   const [filterVersion,  setFilterVersion]  = useState('all');
   const [filterRnType,   setFilterRnType]   = useState('all');
+  const [autoRefreshInterval, setAutoRefreshInterval] = useState(60);
+  const [lastRefreshed,  setLastRefreshed]  = useState(null);
   const [showAiPanel,    setShowAiPanel]    = useState(true);
   const [showCategoryChart, setShowCategoryChart] = useState(true);
   const [showStatusChart,   setShowStatusChart]   = useState(true);
@@ -903,6 +930,7 @@ If there's an error (e.g., Jira offline), it sets an error message to be display
       setJiraError(err.message);
     }
     setLoadingTickets(false);
+    setLastRefreshed(new Date());
   }, []);
 
   //Third step: fetch overall statistics about the tickets from the backend API on component mount, and update the stats state with the retrieved data to be displayed in the dashboard's overview section.
@@ -916,6 +944,13 @@ If there's an error (e.g., Jira offline), it sets an error message to be display
   //Fourth step: trigger the initial load of tickets when the component mounts, ensuring that the dashboard displays the most up-to-date information from Jira as soon as the user logs in.
   useEffect(() => { loadTickets(); }, [loadTickets]);
 
+  // Auto-refresh: re-fetch from Jira automatically at the configured interval (default 60s).
+  useEffect(() => {
+    if (!autoRefreshInterval || autoRefreshInterval <= 0) return;
+    const id = setInterval(() => { loadTickets(); }, autoRefreshInterval * 1000);
+    return () => clearInterval(id);
+  }, [autoRefreshInterval, loadTickets]);
+ 
   //Filtering the tickets based on the active tab (e.g., all, bugs, stories) and the search query entered by the user.
   const filtered = tickets.filter(t => {
     const matchTab = activeTab === 'all' || t.type === activeTab;
@@ -1030,13 +1065,25 @@ If there's an error (e.g., Jira offline), it sets an error message to be display
         <div className="topbar">
           <div>
             <div className="topbar-title">{pageTitle}</div>
-            <div className="topbar-sub">Live Jira sync · {new Date().toLocaleDateString()}</div>
+            <div className="topbar-sub"> Auto-sync · {lastRefreshed ? `Last updated ${lastRefreshed.toLocaleTimeString()}` : 'Loading…'}</div>
           </div>
           <div className="topbar-right">
             <div className="search-bar">
               <span>🔍</span>
               <input placeholder="Search tickets, IDs…"
                 value={search} onChange={e => setSearch(e.target.value)} />
+            </div>
+            <div className="auto-refresh-control" title="Auto-refresh interval">
+              <span className="auto-refresh-icon">🔄</span>
+              <select className="auto-refresh-select"
+                value={autoRefreshInterval}
+                onChange={e => setAutoRefreshInterval(Number(e.target.value))}>
+                <option value={30}>30s</option>
+                <option value={60}>1m</option>
+                <option value={120}>2m</option>
+                <option value={300}>5m</option>
+                <option value={0}>Off</option>
+              </select>
             </div>
             <button className="icon-btn" title="Refresh" onClick={loadTickets}>↻</button>
             {EDITOR_ROLES.includes(user?.role) && (
