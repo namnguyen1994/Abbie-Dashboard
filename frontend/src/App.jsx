@@ -980,7 +980,7 @@ If there's an error (e.g., Jira offline), it sets an error message to be display
     { id: 'stories',       icon: '📖', label: 'Stories',     badge: catCounts.story  },
     { id: 'defects',       icon: '⚠️', label: 'Defects',     badge: catCounts.defect, badgeColor: 'red' },
     { id: 'tasks',         icon: '✅', label: 'Tasks',       badge: catCounts.task   },
-    { id: 'other',         icon: '📦', label: 'Other' },
+    { id: 'other',         icon: '📦', label: 'Other',       badge: catCounts.other  },
     { id: 'release-notes', icon: '📋', label: 'Release Notes' },
     { id: 'ai-query',      icon: '🤖', label: 'Ask AI' },
     
