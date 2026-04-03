@@ -247,7 +247,7 @@ function DocsSection({ ticket, user }) {
           value={val || ''} onChange={e => handleChange(field.key, e.target.value)} />
       );
     }
-    return <span className="docs-value">{val || <span style={{ color: 'var(--gray-400)' }}>—</span>}</span>;
+    return <span className="docs-value">{val || <span style={{ color: 'var(--gray-700)' }}>—</span>}</span>;
   };
  
   return (
@@ -560,7 +560,7 @@ function ReleaseNotesPage({ tickets, user }) {
         <div className="release-sidebar card">
           <div className="card-header">
             <span className="card-title">🎫 Select Tickets</span>
-            <span style={{ fontSize: '12px', color: 'var(--gray-400)' }}>{selectedIds.length}/{tickets.length}</span>
+            <span style={{ fontSize: '12px', color: 'var(--gray-700)' }}>{selectedIds.length}/{tickets.length}</span>
           </div>
           <div className="card-body">
             <button className="btn-secondary" style={{ marginBottom: '10px', width: '100%' }}
@@ -588,7 +588,7 @@ function ReleaseNotesPage({ tickets, user }) {
                         <span style={{
                           fontSize: '10px', fontWeight: '600', padding: '1px 6px',
                           borderRadius: '20px', background: rnColors[rnType],
-                          color: '#374151', whiteSpace: 'nowrap',
+                          color: 'var(--gray-900)', whiteSpace: 'nowrap',
                         }}>
                           {rnText[rnType]} {rnType}
                         </span>
@@ -657,20 +657,20 @@ function ReleaseNotesPage({ tickets, user }) {
 
 // Activity log action labels and colors for display
 const ACTION_LABELS = {
-  LOGIN_SUCCESS           : { label: '✅ Login',            color: '#22c55e' },
-  LOGIN_FAILED            : { label: '❌ Login Failed',     color: '#ef4444' },
-  LOGOUT                  : { label: '👋 Logout',           color: '#64748b' },
-  FIELD_EDIT              : { label: '✏️ Field Edit',        color: '#0ea5e9' },
-  CSV_IMPORT              : { label: '📂 CSV Import',        color: '#8b5cf6' },
-  CSV_IMPORT_FAILURE      : { label: '❌ CSV Import Failed', color: '#ef4444' },
-  SHEET_SYNC_IN           : { label: '🔄 Sheet Sync In',    color: '#f59e0b' },
-  SHEET_SYNC_OUT          : { label: '🔄 Sheet Sync Out',   color: '#f59e0b' },
-  RELEASE_NOTES_GENERATED : { label: '📋 Release Notes',    color: '#0284c7' },
-  PERMISSION_DENIED       : { label: '🚫 Access Denied',    color: '#ef4444' },
-  JIRA_FETCH_SUCCESS      : { label: '🟢 Jira Fetch OK',            color: '#22c55e' },
-  JIRA_FETCH_FAILED       : { label: '🔴 Jira Fetch Failed',        color: '#ef4444' },
-  GEMINI_CATEGORIZE_FAILED  : { label: '🤖 Gemini Categorize Failed', color: '#f59e0b' },
-  GEMINI_ANALYSIS_FAILED    : { label: '🤖 Gemini Analysis Failed',   color: '#f59e0b' },
+  LOGIN_SUCCESS           : { label: '✅ Login',            color: 'var(--gray-900)' },
+  LOGIN_FAILED            : { label: '❌ Login Failed',     color: 'var(--gray-900)' },
+  LOGOUT                  : { label: '👋 Logout',           color: 'var(--gray-900)' },
+  FIELD_EDIT              : { label: '✏️ Field Edit',        color: 'var(--gray-900)' },
+  CSV_IMPORT              : { label: '📂 CSV Import',        color: 'var(--gray-900)' },
+  CSV_IMPORT_FAILURE      : { label: '❌ CSV Import Failed', color: 'var(--gray-900)' },
+  SHEET_SYNC_IN           : { label: '🔄 Sheet Sync In',    color: 'var(--gray-900)' },
+  SHEET_SYNC_OUT          : { label: '🔄 Sheet Sync Out',   color: 'var(--gray-900)' },
+  RELEASE_NOTES_GENERATED : { label: '📋 Release Notes',    color: 'var(--gray-900)' },
+  PERMISSION_DENIED       : { label: '🚫 Access Denied',    color: 'var(--gray-900)' },
+  JIRA_FETCH_SUCCESS      : { label: '🟢 Jira Fetch OK',            color: 'var(--gray-900)' },
+  JIRA_FETCH_FAILED       : { label: '🔴 Jira Fetch Failed',        color: 'var(--gray-900)' },
+  GEMINI_CATEGORIZE_FAILED  : { label: '🤖 Gemini Categorize Failed', color: 'var(--gray-900)' },
+  GEMINI_ANALYSIS_FAILED    : { label: '🤖 Gemini Analysis Failed',   color: 'var(--gray-900)' },
 };
 
 /*
@@ -704,7 +704,7 @@ function ActivityLogPage({ user }) {
                 <option key={key} value={key}>{label}</option>
               ))}
             </select>
-            <span style={{ fontSize: '12px', color: 'var(--gray-400)' }}>
+            <span style={{ fontSize: '12px', color: 'var(--gray-700)' }}>
               {filteredLogs.length} entries
             </span>
           </div>
@@ -731,7 +731,7 @@ function ActivityLogPage({ user }) {
                 <span>IP</span>
               </div>
               {filteredLogs.map((log, i) => {
-                const actionMeta = ACTION_LABELS[log.action] || { label: log.action, color: '#94a3b8' };
+                const actionMeta = ACTION_LABELS[log.action] || { label: log.action, color: 'var(--gray-900)' };
                 return (
                   <div key={i} className="activity-log-row">
                     <span className="log-timestamp">{log.timestamp}</span>
@@ -805,7 +805,7 @@ function AiQueryPage() {
           <span className="ai-badge" style={{ margin: 0 }}>Gemini</span>
         </div>
         <div className="card-body">
-          <p style={{ fontSize: '13px', color: 'var(--gray-500)', marginBottom: '16px' }}>
+          <p style={{ fontSize: '13px', color: 'var(--gray-700)', marginBottom: '16px' }}>
             Ask any question about your project, tickets, or process. Gemini will respond in plain English.
           </p>
           <div className="ai-query-input-row">
@@ -1069,9 +1069,15 @@ If there's an error (e.g., Jira offline), it sets an error message to be display
           </div>
           <div className="topbar-right">
             <div className="search-bar">
-              <span>🔍</span>
-              <input placeholder="Search tickets, IDs…"
-                value={search} onChange={e => setSearch(e.target.value)} />
+              <span style={{ fontSize: '14px', color: 'var(--gray-700)' }}>🔍</span>
+              <label htmlFor="search" className="sr-only">Search tickets</label>
+              <input
+                id="search"
+                type="text"
+                placeholder="Search tickets…"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+              />
             </div>
             <div className="auto-refresh-control" title="Auto-refresh interval">
               <span className="auto-refresh-icon">🔄</span>
@@ -1175,7 +1181,7 @@ If there's an error (e.g., Jira offline), it sets an error message to be display
                   <div className="card">
                     <div className="card-header">
                       <span className="card-title"><span className="card-title-icon">🎫</span> Tickets</span>
-                      <span style={{ fontSize: '12px', color: 'var(--gray-400)' }}>
+                      <span style={{ fontSize: '12px', color: 'var(--gray-700)' }}>
                         {filtered.length} of {tickets.length} shown
                       </span>
                     </div>
@@ -1373,7 +1379,7 @@ If there's an error (e.g., Jira offline), it sets an error message to be display
                       {loadingAI ? (
                         <div className="ai-loading">
                           <span className="loading-spinner"></span>
-                          <span style={{ color: 'var(--sky-600)', fontSize: '13px' }}>Gemini is analyzing your tickets…</span>
+                          <span style={{ color: 'var(--gray-900)', fontSize: '13px' }}>Gemini is analyzing your tickets…</span>
                         </div>
                       ) : aiAnalysis ? (
                         <>
@@ -1458,7 +1464,7 @@ If there's an error (e.g., Jira offline), it sets an error message to be display
                       <span className="ai-badge" style={{ margin: 0 }}>AI</span>
                     </div>
                     <div className="card-body">
-                      <p style={{ fontSize: '13px', color: 'var(--gray-600)', lineHeight: '1.6' }}>
+                      <p style={{ fontSize: '13px', color: 'var(--gray-700)', lineHeight: '1.6' }}>
                         Generate professional release notes from your Jira tickets using Gemini AI and your company knowledge base.
                       </p>
                       <div className="btn-primary" style={{ marginTop: '10px', display: 'inline-block', cursor: 'pointer' }}>
@@ -1485,7 +1491,7 @@ If there's an error (e.g., Jira offline), it sets an error message to be display
               <button className="modal-close" onClick={() => setShowSheetModal(false)}>✕</button>
             </div>
             <div className="modal-body">
-              <p style={{ fontSize: '13px', color: 'var(--gray-600)', marginBottom: 12 }}>
+              <p style={{ fontSize: '13px', color: 'var(--gray-700)', marginBottom: 12 }}>
                 Paste your Google Sheet URL below. It will be saved for future syncs.
               </p>
               <input
