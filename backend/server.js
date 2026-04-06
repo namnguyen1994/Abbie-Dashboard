@@ -940,16 +940,16 @@ Answer the following question clearly and concisely in plain text (no markdown).
 Question: ${question.trim()}
 `.trim();
  
-  // Race the Gemini call against a 15-second timeout
+  // Race the Gemini call against a 45-second timeout
   const timeoutPromise = new Promise((_, reject) =>
-    setTimeout(() => reject(new Error('TIMEOUT')), 15000)
+    setTimeout(() => reject(new Error('TIMEOUT')), 45000)
   );
 
     const geminiCall = (async () => {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${CONFIG.GEMINI_API_KEY}`;
     const response = await axios.post(url, {
       contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { temperature: 0.4, maxOutputTokens: 1024 },
+      generationConfig: { temperature: 0.4, maxOutputTokens: 8192 },
     });
     return response.data.candidates?.[0]?.content?.parts?.[0]?.text || '';
   })();

@@ -761,7 +761,7 @@ function AiQueryPage() {
   const [loading,  setLoading]  = useState(false);
   const [error,    setError]    = useState('');
  
-  const CLIENT_TIMEOUT_MS = 17000; // slightly longer than server's 15s to let server error arrive first
+  const CLIENT_TIMEOUT_MS = 45000; 
  
   const submitQuery = async () => {
     if (!question.trim()) return;
