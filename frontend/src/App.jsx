@@ -1483,12 +1483,12 @@ If there's an error (e.g., Jira offline), it sets an error message to be display
         </div>
       </main>
       
-      // Ticket detail modal, which is displayed when a user clicks on a ticket row, showing more in-depth information about the selected ticket and allowing for potential edits or updates depending on the user's role and permissions.
+      {/*Ticket detail modal, which is displayed when a user clicks on a ticket row, showing more in-depth information about the selected ticket and allowing for potential edits or updates depending on the user's role and permissions.*/}
       {selectedTicket && (
         <TicketModal ticket={selectedTicket} onClose={() => setSelectedTicket(null)} user={user} />
       )}
-
-      // Google Sheet sync modal, which allows users to input a Google Sheet URL to sync their Jira tickets with the data in the sheet. This modal is triggered when the user clicks the "Sync from Google Sheet" button and provides a form for entering the sheet URL, along with instructions and error handling for the sync process.
+  
+      {/* Google Sheet sync modal, which allows users to input a Google Sheet URL to sync their Jira tickets with the data in the sheet. This modal is triggered when the user clicks the "Sync from Google Sheet" button and provides a form for entering the sheet URL, along with instructions and error handling for the sync process. */}
       {showSheetModal && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowSheetModal(false)}>
           <div className="modal fade-in" style={{ maxWidth: 480 }}>
