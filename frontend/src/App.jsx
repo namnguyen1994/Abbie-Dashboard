@@ -147,8 +147,10 @@ It also shows error messages when login fails and provides visual feedback durin
   );
 }
 
+// List of user roles that are allowed to edit documentation fields. 
 const EDITOR_ROLES = ['Senior Developer', 'Admin'];
 
+// Configuration for documentation fields, including their labels, keys for data storage, and input types (e.g., text, textarea, yes/no dropdowns).
 const DOC_FIELDS = [
   { label: 'Epic PLAT (Parent)',                               key: 'epicPlat',         type: 'text'     },
   { label: 'Docs Status',                                      key: 'docsStatus',       type: 'text'     },
@@ -165,6 +167,7 @@ const DOC_FIELDS = [
   { label: 'PLAT Number/Link Added to Internal Version?',      key: 'platLinkAdded',    type: 'yesno'    },
 ];
 
+// Documentation section component that displays various documentation-related fields for a ticket, allows users with appropriate roles to edit these fields, and handles saving the changes back to the backend API.
 function DocsSection({ ticket, user }) {
   const initialDocs  = ticket.docs || {};
   const [editing,    setEditing]  = useState(false);
@@ -173,6 +176,7 @@ function DocsSection({ ticket, user }) {
   const [saveMsg,    setSaveMsg]  = useState('');
   const canEdit = EDITOR_ROLES.includes(user?.role);
  
+  // Handle changes to form fields by updating the local state. This function takes a key and value, and updates the corresponding field in the form state while preserving the other fields.
   const handleChange = (key, val) => setForm(prev => ({ ...prev, [key]: val }));
  
   const handleSave = async () => {
